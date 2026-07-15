@@ -1,0 +1,144 @@
+openapi: 3.1.0
+info:
+  title: Fitness Coach Data API
+  version: 0.1.0
+servers:
+  - url: https://your-api.example.com
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    CheckIn:
+      type: object
+      required:
+        - date
+        - sleep_quality
+        - energy
+        - soreness
+        - motivation
+      properties:
+        date:
+          type: string
+          format: date
+        body_weight_kg:
+          type: number
+        sleep_hours:
+          type: number
+        sleep_quality:
+          type: integer
+          minimum: 1
+          maximum: 10
+        energy:
+          type: integer
+          minimum: 1
+          maximum: 10
+        soreness:
+          type: integer
+          minimum: 1
+          maximum: 10
+        stress:
+          type: integer
+          minimum: 1
+          maximum: 10
+        motivation:
+          type: integer
+          minimum: 1
+          maximum: 10
+        readiness:
+          type: integer
+          minimum: 1
+          maximum: 10
+        resting_hr:
+          type: integer
+        hrv_ms:
+          type: number
+        pain_notes:
+          type: string
+        notes:
+          type: string
+    CheckOut:
+      type: object
+      required:
+        - date
+        - activity
+        - duration_minutes
+        - intensity
+      properties:
+        date:
+          type: string
+          format: date
+        activity:
+          type: string
+        workout_type:
+          type: string
+        duration_minutes:
+          type: integer
+        intensity:
+          type: integer
+          minimum: 1
+          maximum: 10
+        rpe:
+          type: integer
+          minimum: 1
+          maximum: 10
+        calories:
+          type: integer
+        distance_km:
+          type: number
+        sets_summary:
+          type: string
+        coach_rating:
+          type: integer
+          minimum: 1
+          maximum: 10
+        felt_after:
+          type: integer
+          minimum: 1
+          maximum: 10
+        notes:
+          type: string
+security:
+  - bearerAuth: []
+paths:
+  /check-ins:
+    post:
+      operationId: createCheckIn
+      summary: Speichert einen morgendlichen Check-in.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckIn"
+      responses:
+        "201":
+          description: Check-in gespeichert.
+  /check-outs:
+    post:
+      operationId: createCheckOut
+      summary: Speichert einen Trainings-Check-out.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CheckOut"
+      responses:
+        "201":
+          description: Check-out gespeichert.
+  /dashboard-summary:
+    get:
+      operationId: getDashboardSummary
+      summary: Holt den aktuellen Dashboard-Zustand.
+      responses:
+        "200":
+          description: Aktueller Dashboard-Zustand.
+  /athlete-state:
+    get:
+      operationId: getAthleteState
+      summary: Holt den aktuellen Athletenzustand fuer Coaching-Empfehlungen.
+      responses:
+        "200":
+          description: Aktueller Athletenzustand.
