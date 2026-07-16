@@ -11,6 +11,7 @@ Diese kleine API ist die Datenbasis fuer den Fitness-Coach:
 
 - `supabase/schema.sql`: Datenbankschema fuer Supabase/Postgres
 - `src/server.js`: API-Server
+- `public/`: geschuetztes Dashboard unter `/app`
 - `openapi.yaml`: Schema fuer Custom GPT Actions
 - `.env.example`: benoetigte Umgebungsvariablen
 
@@ -40,6 +41,21 @@ Geschuetzte Endpunkte brauchen den Header:
 
 ```text
 Authorization: Bearer <API_KEY>
+```
+
+## Dashboard
+
+Nach dem Deployment ist das Dashboard erreichbar unter:
+
+```text
+https://deine-render-adresse.onrender.com/app
+```
+
+Setze dafuer in Render zusaetzlich:
+
+```text
+DASHBOARD_PASSWORD=<dein Dashboard-Passwort>
+SESSION_SECRET=<ein langer zufaelliger Text>
 ```
 
 ## Custom GPT Action

@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Fitness Coach Dashboard</title>
+    <link rel="stylesheet" href="/app/styles.css">
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Fitness Coach</p>
+        <h1>Coach Dashboard</h1>
+      </div>
+      <div class="topbar-actions">
+        <button id="refreshButton" type="button">Aktualisieren</button>
+        <form method="post" action="/app/logout">
+          <button class="secondary" type="submit">Logout</button>
+        </form>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero-panel" aria-label="Coach Ampel und Readiness">
+        <div class="coach-copy">
+          <div class="traffic-row">
+            <span id="coachLight" class="traffic-pill neutral">Neutral</span>
+            <span id="todayDate">Heute</span>
+          </div>
+          <h2 id="coachHeadline">Daten werden geladen</h2>
+          <p id="coachReason">Sobald ein Check-in vorhanden ist, bewertet der Coach deinen Status und den naechsten sinnvollen Schritt.</p>
+        </div>
+        <div class="score-ring" id="scoreRing">
+          <strong id="readinessScore">-</strong>
+          <span>Readiness</span>
+        </div>
+      </section>
+
+      <section class="readiness-grid" aria-label="Readiness Werte">
+        <article>
+          <span>Gesundheit</span>
+          <strong id="healthReadiness">-</strong>
+          <small id="healthHint">Schmerz, Erholung, Koerpersignal</small>
+        </article>
+        <article>
+          <span>Mental</span>
+          <strong id="mentalReadiness">-</strong>
+          <small id="mentalHint">Motivation, Stress, Fokus</small>
+        </article>
+        <article>
+          <span>Koerperlich</span>
+          <strong id="physicalReadiness">-</strong>
+          <small id="physicalHint">Energie, Schlaf, Muskelkater</small>
+        </article>
+        <article>
+          <span>Load heute</span>
+          <strong id="todayLoad">-</strong>
+          <small id="loadHint">Dauer x Intensitaet</small>
+        </article>
+      </section>
+
+      <section class="action-grid">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Naechster Schritt</h2>
+            <span id="stepBadge">Planung</span>
+          </div>
+          <dl class="plan-list">
+            <div><dt>Trainingsart</dt><dd id="trainingType">-</dd></div>
+            <div><dt>Wann</dt><dd id="trainingWhen">-</dd></div>
+            <div><dt>Dauer</dt><dd id="trainingDuration">-</dd></div>
+            <div><dt>Warum</dt><dd id="trainingWhy">-</dd></div>
+          </dl>
+        </section>
+
+        <section class="panel mental-panel">
+          <div class="panel-header">
+            <h2>Mentale Ausrichtung</h2>
+            <span id="focusBadge">Fokus</span>
+          </div>
+          <p id="mentalFocus">Heute geht es darum, den passenden Trainingsreiz zu setzen und nicht gegen die Tagesform zu arbeiten.</p>
+          <div class="focus-line">
+            <span>Zahlt ein auf</span>
+            <strong id="goalLink">Konsistenz</strong>
+          </div>
+        </section>
+      </section>
+
+      <nav class="tabs" aria-label="Dashboard Bereiche">
+        <a href="#performance">Leistung</a>
+        <a href="#jump">Messtage</a>
+        <a href="#recovery">Recovery</a>
+        <a href="#health">Gesundheit</a>
+        <a href="#strength">Kraft</a>
+        <a href="#history">Historie</a>
+      </nav>
+
+      <section id="performance" class="section-grid">
+        <section class="panel wide">
+          <div class="panel-header">
+            <h2>Leistungsentwicklung</h2>
+            <span>Trainingslast, Einheiten, Intensitaet</span>
+          </div>
+          <div id="weeklyLoad" class="bar-chart"></div>
+        </section>
+      </section>
+
+      <section id="jump" class="section-grid">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Messtage und Sprungwerte</h2>
+            <span>Noch separat</span>
+          </div>
+          <div class="empty-state">
+            <strong>Noch keine Sprungwerte erfasst.</strong>
+            <p>Wenn dein Coach Messtage speichert, zeigen wir hier CMJ, Sprunghoehe, Abweichung vom Schnitt und Frische-Interpretation.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Sprung-Interpretation</h2>
+            <span>Status</span>
+          </div>
+          <dl class="compact-metrics">
+            <div><dt>Letzter Messtag</dt><dd>-</dd></div>
+            <div><dt>Trend</dt><dd>-</dd></div>
+            <div><dt>Bestwert</dt><dd>-</dd></div>
+            <div><dt>4-Wochen-Schnitt</dt><dd>-</dd></div>
+          </dl>
+        </section>
+      </section>
+
+      <section id="recovery" class="section-grid">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Recovery Werte</h2>
+            <span>letzter Check-in</span>
+          </div>
+          <dl class="compact-metrics">
+            <div><dt>Schlafqualitaet</dt><dd id="sleepQuality">-</dd></div>
+            <div><dt>Schlafdauer</dt><dd id="sleepHours">-</dd></div>
+            <div><dt>Energie</dt><dd id="energyScore">-</dd></div>
+            <div><dt>Muskelkater</dt><dd id="sorenessScore">-</dd></div>
+          </dl>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Recovery Kommentar</h2>
+            <span>Coach</span>
+          </div>
+          <p id="recoveryComment">Noch keine Recovery-Auswertung vorhanden.</p>
+        </section>
+      </section>
+
+      <section id="health" class="section-grid">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Gesundheitswerte</h2>
+            <span>Check-in</span>
+          </div>
+          <dl class="compact-metrics">
+            <div><dt>Ruhepuls</dt><dd id="restingHr">-</dd></div>
+            <div><dt>HRV</dt><dd id="hrv">-</dd></div>
+            <div><dt>Gewicht</dt><dd id="bodyWeight">-</dd></div>
+            <div><dt>Stress</dt><dd id="stressScore">-</dd></div>
+          </dl>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Warnhinweise</h2>
+            <span id="riskBadge">Risiko</span>
+          </div>
+          <p id="riskComment">Der Coach bewertet Warnsignale, sobald ausreichend Check-in-Daten vorhanden sind.</p>
+        </section>
+      </section>
+
+      <section id="strength" class="section-grid">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Kraftwerte</h2>
+            <span>Noch separat</span>
+          </div>
+          <div class="empty-state">
+            <strong>Noch keine strukturierten Kraftwerte.</strong>
+            <p>Aktuell landen Kraftdetails als Notiz im Check-out. Als naechsten Ausbauschritt koennen wir Uebung, Gewicht, Saetze und Wiederholungen strukturiert speichern.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Letzte Einheit</h2>
+            <span id="lastWorkoutDate">-</span>
+          </div>
+          <div id="lastWorkout" class="workout-summary">Noch kein Check-out vorhanden.</div>
+        </section>
+      </section>
+
+      <section id="history" class="history-grid">
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Letzte Check-ins</h2>
+            <span>14 Eintraege</span>
+          </div>
+          <div id="checkIns" class="list"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <h2>Letzte Check-outs</h2>
+            <span>20 Eintraege</span>
+          </div>
+          <div id="checkOuts" class="list"></div>
+        </section>
+      </section>
+    </main>
+
+    <script src="/app/app.js"></script>
+  </body>
+</html>
