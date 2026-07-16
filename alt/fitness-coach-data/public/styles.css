@@ -286,47 +286,6 @@ dt {
   background: var(--panel-2);
 }
 
-.exercise-plan-list {
-  display: grid;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.exercise-card {
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel-3);
-}
-
-.exercise-card header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 8px;
-}
-
-.exercise-card h3 {
-  margin: 0;
-  font-size: 16px;
-}
-
-.exercise-prescription {
-  color: var(--accent);
-  font-weight: 900;
-}
-
-.exercise-card p {
-  margin: 8px 0 0;
-  color: var(--muted);
-  line-height: 1.45;
-}
-
-.exercise-card b {
-  color: var(--text);
-}
-
 dd {
   margin: 5px 0 0;
   font-size: 20px;

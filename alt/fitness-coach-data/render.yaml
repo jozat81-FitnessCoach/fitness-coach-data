@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: fitness-coach-data
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: API_KEY
+        generateValue: true
+      - key: DASHBOARD_PASSWORD
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: DATABASE_SSL
+        value: "true"
+      - key: CORS_ORIGIN
+        value: "*"

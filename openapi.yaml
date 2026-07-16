@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Fitness Coach Data API
-  version: 0.1.0
+  version: 0.2.0
 servers:
   - url: https://your-api.example.com
 components:
@@ -10,6 +10,40 @@ components:
       type: http
       scheme: bearer
   schemas:
+    TrackedMetric:
+      type: object
+      required:
+        - category
+        - metric_key
+        - label
+      properties:
+        date:
+          type: string
+          format: date
+        source_type:
+          type: string
+          enum: [check_in, check_out, training_plan, manual]
+        category:
+          type: string
+          description: Bereich, z. B. Gesundheit, Schmerz, Sprung, Mobility, Blutzucker.
+        metric_key:
+          type: string
+          description: Maschinenlesbarer Name, z. B. right_elbow_pain.
+        label:
+          type: string
+          description: Anzeigename, z. B. Rechter Ellenbogen.
+        numeric_value:
+          type: number
+        text_value:
+          type: string
+        unit:
+          type: string
+        scale_min:
+          type: number
+        scale_max:
+          type: number
+        notes:
+          type: string
     CheckIn:
       type: object
       required:
@@ -58,6 +92,88 @@ components:
           type: string
         notes:
           type: string
+        tracked_metrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrackedMetric"
+    ExercisePlan:
+      type: object
+      required:
+        - exercise_name
+      properties:
+        sort_order:
+          type: integer
+        exercise_name:
+          type: string
+        block_name:
+          type: string
+          description: Warm-up, Main, Assistance, Cooldown.
+        sets:
+          type: string
+          description: Geplante Saetze, z. B. 3.
+        reps:
+          type: string
+          description: Geplante Wiederholungen, z. B. 6 oder 8 je Seite.
+        load_text:
+          type: string
+          description: Geplantes Gewicht, z. B. 90 kg oder 20 kg je Hand.
+        rpe_target:
+          type: string
+          description: Ziel-RPE, z. B. 7.
+        rest_seconds:
+          type: integer
+        tempo:
+          type: string
+        technical_notes:
+          type: string
+          description: Kurze allgemeine Ausfuehrungserklaerung.
+        today_focus:
+          type: string
+          description: Tagesfokus, z. B. langsam runter, explosiv hoch.
+        alternative:
+          type: string
+          description: Anpassung, falls Schmerz oder Ermuendung auftritt.
+    TrainingPlan:
+      type: object
+      required:
+        - date
+        - should_train
+        - session_title
+      properties:
+        date:
+          type: string
+          format: date
+        should_train:
+          type: boolean
+        status:
+          type: string
+          enum: [planned, completed, adjusted, skipped]
+        session_title:
+          type: string
+        session_type:
+          type: string
+        goal:
+          type: string
+        estimated_duration_minutes:
+          type: integer
+        intensity_target:
+          type: string
+        coach_summary:
+          type: string
+        coach_reasoning:
+          type: string
+        mental_focus:
+          type: string
+        warnings:
+          type: string
+        exercises:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExercisePlan"
+        tracked_metrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrackedMetric"
     CheckOut:
       type: object
       required:
@@ -99,13 +215,64 @@ components:
           maximum: 10
         notes:
           type: string
+    ExerciseResult:
+      type: object
+      required:
+        - exercise_name
+      properties:
+        plan_exercise_id:
+          type: string
+        exercise_name:
+          type: string
+        planned_sets:
+          type: string
+        planned_reps:
+          type: string
+        planned_load_text:
+          type: string
+        actual_sets:
+          type: string
+          description: Mit geplantem Wert vorausfuellen und nur bei Abweichung aendern.
+        actual_reps:
+          type: string
+          description: Mit geplantem Wert vorausfuellen und nur bei Abweichung aendern.
+        actual_load_text:
+          type: string
+          description: Mit geplantem Wert vorausfuellen und nur bei Abweichung aendern.
+        rpe:
+          type: integer
+          minimum: 1
+          maximum: 10
+        pain_score:
+          type: integer
+          minimum: 1
+          maximum: 10
+        completed:
+          type: boolean
+        notes:
+          type: string
+    PlannedCheckOut:
+      allOf:
+        - $ref: "#/components/schemas/CheckOut"
+        - type: object
+          properties:
+            plan_id:
+              type: string
+            exercise_results:
+              type: array
+              items:
+                $ref: "#/components/schemas/ExerciseResult"
+            tracked_metrics:
+              type: array
+              items:
+                $ref: "#/components/schemas/TrackedMetric"
 security:
   - bearerAuth: []
 paths:
   /check-ins:
     post:
       operationId: createCheckIn
-      summary: Speichert einen morgendlichen Check-in.
+      summary: Speichert einen morgendlichen Check-in inklusive flexibler Zusatzmetriken.
       requestBody:
         required: true
         content:
@@ -115,10 +282,57 @@ paths:
       responses:
         "201":
           description: Check-in gespeichert.
+  /training-plans:
+    post:
+      operationId: createTrainingPlan
+      summary: Speichert den konkreten Tages-Trainingsplan mit Uebungen, Technikhinweisen und Tagesfokus.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrainingPlan"
+      responses:
+        "201":
+          description: Trainingsplan gespeichert.
+  /training-plans/today:
+    get:
+      operationId: getTodayTrainingPlan
+      summary: Holt den aktuellen Trainingsplan fuer heute.
+      responses:
+        "200":
+          description: Heutiger Trainingsplan.
+  /check-out-template:
+    get:
+      operationId: getCheckOutTemplate
+      summary: Holt den heutigen Plan als Check-out-Vorlage. Die Ist-Werte sind bereits mit den geplanten Werten vorausgefuellt.
+      parameters:
+        - in: query
+          name: date
+          schema:
+            type: string
+            format: date
+          required: false
+      responses:
+        "200":
+          description: Check-out-Vorlage mit vorausgefuellten Uebungen.
+  /planned-check-outs:
+    post:
+      operationId: createPlannedCheckOut
+      summary: Speichert einen Check-out inklusive Plan-Ist-Abgleich pro Uebung.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlannedCheckOut"
+      responses:
+        "201":
+          description: Check-out und Uebungsergebnisse gespeichert.
   /check-outs:
     post:
       operationId: createCheckOut
-      summary: Speichert einen Trainings-Check-out.
+      summary: Speichert einen einfachen Trainings-Check-out ohne Plan-Ist-Abgleich.
       requestBody:
         required: true
         content:
@@ -131,7 +345,7 @@ paths:
   /dashboard-summary:
     get:
       operationId: getDashboardSummary
-      summary: Holt den aktuellen Dashboard-Zustand.
+      summary: Holt den aktuellen Dashboard-Zustand inklusive heutigem Trainingsplan.
       responses:
         "200":
           description: Aktueller Dashboard-Zustand.

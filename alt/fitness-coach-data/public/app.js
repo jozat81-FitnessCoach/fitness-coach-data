@@ -25,15 +25,6 @@ function notes(value) {
   return value ? value : "Keine Notiz hinterlegt.";
 }
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
@@ -177,19 +168,6 @@ function trainingPlan(readiness, today) {
   };
 }
 
-function planFromStoredTrainingPlan(plan) {
-  if (!plan) return null;
-  return {
-    badge: plan.should_train ? "Plan" : "Recovery",
-    type: plan.session_title,
-    when: plan.should_train ? "Heute gemaess Coach-Plan" : "Heute bewusst nicht trainieren",
-    duration: plan.estimated_duration_minutes ? `${plan.estimated_duration_minutes} Min` : "-",
-    why: plan.coach_reasoning || plan.coach_summary || "Der Plan basiert auf Check-in, Verlauf und Trainingsziel.",
-    focus: plan.mental_focus || "Konzentriert arbeiten, sauber rueckmelden, nicht gegen die Tagesform erzwingen.",
-    goal: plan.goal || "Trainingssteuerung"
-  };
-}
-
 function setToneClasses(node, baseClass, tone) {
   node.className = `${baseClass} ${tone}`;
 }
@@ -238,7 +216,7 @@ function renderCheckIns(rows) {
         <span class="item-meta">Energie ${score(row.energy)}</span>
       </div>
       <p>Schlaf ${score(row.sleep_quality)} · Motivation ${score(row.motivation)} · Muskelkater ${score(row.soreness)}</p>
-      <p>${escapeHtml(notes(row.notes || row.pain_notes))}</p>
+      <p>${notes(row.notes || row.pain_notes)}</p>
     `;
     container.appendChild(el);
   });
@@ -258,11 +236,11 @@ function renderCheckOuts(rows) {
     el.className = "item";
     el.innerHTML = `
       <div class="item-title">
-        <span>${escapeHtml(row.activity)}</span>
+        <span>${row.activity}</span>
         <span class="item-meta">${formatDay(row.entry_date)}</span>
       </div>
       <p>${row.duration_minutes} Min · Intensitaet ${score(row.intensity)} · RPE ${score(row.rpe)}</p>
-      <p>${escapeHtml(notes(row.notes || row.sets_summary))}</p>
+      <p>${notes(row.notes || row.sets_summary)}</p>
     `;
     container.appendChild(el);
   });
@@ -274,37 +252,10 @@ function renderLastWorkout(rows) {
 
   text("lastWorkoutDate", formatDay(latest.entry_date));
   byId("lastWorkout").innerHTML = `
-    <strong>${escapeHtml(latest.activity)}</strong>
+    <strong>${latest.activity}</strong>
     <p>${latest.duration_minutes} Min · Intensitaet ${score(latest.intensity)} · RPE ${score(latest.rpe)}</p>
-    <p>${escapeHtml(notes(latest.notes || latest.sets_summary))}</p>
+    <p>${notes(latest.notes || latest.sets_summary)}</p>
   `;
-}
-
-function renderTrainingPlanExercises(plan) {
-  const container = byId("trainingPlanExercises");
-  container.innerHTML = "";
-
-  if (!plan?.exercises?.length) {
-    container.innerHTML = '<div class="empty-state"><strong>Noch kein konkreter Uebungsplan gespeichert.</strong><p>Nach dem naechsten Check-in kann dein GPT einen Tagesplan mit Uebungen, Saetzen, Wiederholungen und Gewichten speichern.</p></div>';
-    return;
-  }
-
-  plan.exercises.forEach((exercise) => {
-    const prescription = [exercise.sets, exercise.reps, exercise.load_text].filter(Boolean).join(" x ");
-    const el = document.createElement("article");
-    el.className = "exercise-card";
-    el.innerHTML = `
-      <header>
-        <h3>${exercise.sort_order}. ${escapeHtml(exercise.exercise_name)}</h3>
-        <span class="exercise-prescription">${escapeHtml(prescription || "geplant")}</span>
-      </header>
-      <p><b>Technik:</b> ${escapeHtml(notes(exercise.technical_notes))}</p>
-      <p><b>Heute achten auf:</b> ${escapeHtml(notes(exercise.today_focus))}</p>
-      <p><b>RPE/Pause:</b> ${escapeHtml(exercise.rpe_target || "-")} · ${exercise.rest_seconds ? `${exercise.rest_seconds} Sek` : "-"}</p>
-      ${exercise.alternative ? `<p><b>Alternative:</b> ${escapeHtml(exercise.alternative)}</p>` : ""}
-    `;
-    container.appendChild(el);
-  });
 }
 
 async function loadDashboard() {
@@ -317,11 +268,10 @@ async function loadDashboard() {
   const today = data.today;
   const latestCheckIn = data.recent_check_ins?.[0];
   const displayCheckIn = today || latestCheckIn;
-  const storedPlan = data.today_training_plan;
   const scores = deriveScores(today, latestCheckIn);
   const readiness = scores.readiness;
   const state = coachState(readiness, displayCheckIn);
-  const plan = planFromStoredTrainingPlan(storedPlan) || trainingPlan(readiness, today);
+  const plan = trainingPlan(readiness, today);
 
   text("todayDate", displayCheckIn ? formatDay(displayCheckIn.entry_date) : "Heute");
   text("coachHeadline", state.headline);
@@ -343,7 +293,6 @@ async function loadDashboard() {
   text("trainingWhy", plan.why);
   text("mentalFocus", plan.focus);
   text("goalLink", plan.goal);
-  renderTrainingPlanExercises(storedPlan);
 
   text("sleepQuality", score(displayCheckIn?.sleep_quality));
   text("sleepHours", displayCheckIn?.sleep_hours == null ? "-" : `${displayCheckIn.sleep_hours} h`);
