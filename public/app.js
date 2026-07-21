@@ -114,6 +114,18 @@ function coachState(readiness, today) {
   };
 }
 
+function coachStateFromAssessment(assessment) {
+  if (!assessment) return null;
+  const tone = assessment.traffic_light || "neutral";
+  const labels = { green: "Gruen", yellow: "Gelb", red: "Rot", neutral: "Neutral" };
+  return {
+    tone,
+    label: labels[tone] || "Neutral",
+    headline: assessment.coach_statement || "Coach Assessment gespeichert",
+    reason: assessment.reason || "Die Bewertung basiert auf Check-in, Verlauf und Zielbezug."
+  };
+}
+
 function trainingPlan(readiness, today) {
   const workoutMinutes = Number(today?.workout_minutes || 0);
   const soreness = Number(today?.soreness || 0);
@@ -318,18 +330,19 @@ async function loadDashboard() {
   const latestCheckIn = data.recent_check_ins?.[0];
   const displayCheckIn = today || latestCheckIn;
   const storedPlan = data.today_training_plan;
+  const assessment = data.latest_daily_assessment;
   const scores = deriveScores(today, latestCheckIn);
-  const readiness = scores.readiness;
-  const state = coachState(readiness, displayCheckIn);
+  const readiness = assessment?.readiness_total ?? scores.readiness;
+  const state = coachStateFromAssessment(assessment) || coachState(readiness, displayCheckIn);
   const plan = planFromStoredTrainingPlan(storedPlan) || trainingPlan(readiness, today);
 
   text("todayDate", displayCheckIn ? formatDay(displayCheckIn.entry_date) : "Heute");
   text("coachHeadline", state.headline);
   text("coachReason", state.reason);
   text("readinessScore", readiness == null ? "-" : Math.round(readiness));
-  text("healthReadiness", percent(scores.health));
-  text("mentalReadiness", percent(scores.mental));
-  text("physicalReadiness", percent(scores.physical));
+  text("healthReadiness", percent(assessment?.readiness_health ?? scores.health));
+  text("mentalReadiness", percent(assessment?.readiness_mental ?? scores.mental));
+  text("physicalReadiness", percent(assessment?.readiness_physical ?? scores.physical));
   text("todayLoad", today?.training_load == null ? "0 AU" : `${today.training_load} AU`);
 
   setToneClasses(byId("coachLight"), "traffic-pill", state.tone);
@@ -341,7 +354,8 @@ async function loadDashboard() {
   text("trainingWhen", plan.when);
   text("trainingDuration", plan.duration);
   text("trainingWhy", plan.why);
-  text("mentalFocus", plan.focus);
+  text("mentalFocus", assessment?.mental_alignment || plan.focus);
+  text("nutritionRecommendation", assessment?.nutrition_recommendation || "Noch keine Ernaehrungsempfehlung gespeichert.");
   text("goalLink", plan.goal);
   renderTrainingPlanExercises(storedPlan);
 
