@@ -11,6 +11,7 @@ Diese kleine API ist die Datenbasis fuer den Fitness-Coach:
 
 - `supabase/schema.sql`: Datenbankschema fuer Supabase/Postgres
 - `supabase/upgrade_training_plans.sql`: Upgrade fuer bestehende Datenbanken mit Trainingsplaenen, Uebungen und flexiblen Metriken
+- `supabase/upgrade_profiles_goals_v08.sql`: Upgrade fuer Profile, Ziele, Standard-Check-in, Standard-Check-out, Daily Assessments und Mess-Tage
 - `src/server.js`: API-Server
 - `public/`: geschuetztes Dashboard unter `/app`
 - `openapi.yaml`: Schema fuer Custom GPT Actions
@@ -38,6 +39,25 @@ Das ergaenzt:
 - konkrete Tages-Trainingsplaene
 - geplante Uebungen mit Saetzen, Wiederholungen, Gewicht, Technikhinweis und Tagesfokus
 - Uebungsergebnisse fuer den Check-out mit Plan-Ist-Abgleich
+
+## Upgrade auf Konzept v0.8
+
+Fuehre danach zusaetzlich diese Datei im Supabase SQL Editor aus:
+
+```text
+supabase/upgrade_profiles_goals_v08.sql
+```
+
+Das ergaenzt:
+
+- Standardprofil und technische Vorbereitung fuer mehrere Nutzer
+- Zielstruktur mit uebergeordneten Zielen und Unterzielen
+- Zielmetriken und Trainingsprinzipien
+- Standard-Check-in-Felder gemaess Konzept v0.8
+- Standard-Check-out-Felder gemaess Konzept v0.8
+- Coach Daily Assessments fuer Ampel, Readiness, Coach-Statement, Mentalfokus und Ernaehrungsempfehlung
+- Messtage, Messtag-Tests, Messergebnisse und Messtag-Auswertungen
+- pragmatische Startgewichtung fuer Readiness, die spaeter kalibriert werden kann
 
 ## Lokal starten
 
@@ -88,6 +108,16 @@ Nach Version 0.2 kann der GPT zusaetzlich:
 - `getCheckOutTemplate` aufrufen, um beim Check-out die geplanten Uebungen bereits vorauszufuellen
 - `createPlannedCheckOut` aufrufen, um Plan-Ist-Ergebnisse zu speichern
 
+Nach Version 0.8 kann der GPT zusaetzlich:
+
+- `getCheckInTemplate` aufrufen, um immer zuerst eine kopierbare, thematisch gruppierte Check-in-Vorlage bereitzustellen
+- `setupProfile` nutzen, um Nutzerkontext, Equipment und Einschraenkungen zu speichern
+- `proposeGoals` nutzen, um Ziele, Metriken und Trainingsprinzipien vorzuschlagen
+- `confirmGoals` erst nach Nutzerbestaetigung nutzen, um Ziele zu speichern
+- `createDailyAssessment` oder `createPragmaticDailyAssessmentFromCheckIn` nutzen, um die Coach-Tagesbewertung zu speichern
+- `proposeMeasurementDay` nutzen, um einen ueberschaubaren Messtag fachlich vorzuschlagen
+- `createMeasurementDay` nutzen, um Messtag, Tests, Ergebnisse und Auswertung zu speichern
+
 ## Coach-Instruktion
 
 ```text
@@ -100,17 +130,30 @@ Bevor du Empfehlungen gibst, rufe getAthleteState oder getDashboardSummary auf.
 
 ```text
 Nach jedem morgendlichen Check-in:
-1. Speichere den Check-in mit createCheckIn.
-2. Rufe getAthleteState oder getDashboardSummary auf.
-3. Entscheide, ob heute trainiert wird.
-4. Wenn trainiert wird, erstelle einen konkreten Tages-Trainingsplan mit Uebungen, Saetzen, Wiederholungen, Gewicht, RPE-Ziel, Pause, Technikhinweis, heutigem Fokus und Alternative.
-5. Speichere diesen Plan mit createTrainingPlan.
+1. Rufe getCheckInTemplate auf und stelle die Vorlage kopierbar im Chat bereit.
+2. Speichere den befuellten Check-in mit createCheckIn.
+3. Speichere eine Tagesbewertung mit createDailyAssessment. Alternativ kann createPragmaticDailyAssessmentFromCheckIn eine Startbewertung erzeugen.
+4. Rufe getAthleteState oder getDashboardSummary auf.
+5. Entscheide, ob heute trainiert wird.
+6. Wenn trainiert wird, erstelle einen konkreten Tages-Trainingsplan mit Uebungen, Saetzen, Wiederholungen, Gewicht, RPE-Ziel, Pause, Technikhinweis, heutigem Fokus und Alternative.
+7. Speichere diesen Plan mit createTrainingPlan.
 
 Beim Check-out:
 1. Rufe zuerst getCheckOutTemplate auf.
 2. Nutze die geplanten Uebungen als vorausgefuellte Ist-Werte.
-3. Frage nur nach Abweichungen, RPE, Schmerz/Unwohlsein und kurzer Notiz.
+3. Frage nur nach Abweichungen und den Standardwerten aus dem Check-out: Dauer, Belastung, Qualitaet, Energie, Explosivitaet, Fokus, Schmerz, Muskelgefuehl, Technikgefuehl, Erschoepfung, Regenerationsbedarf und Reflexion.
 4. Speichere den Check-out mit createPlannedCheckOut.
+
+Bei Zielaenderungen:
+1. Rufe proposeGoals auf oder entwickle einen fachlich begruendeten Vorschlag.
+2. Stimme Ziel, Unterziele, Metriken, Mess-Tage, Check-in-Felder, Check-out-Felder und Dashboardmodule mit dem Nutzer ab.
+3. Speichere erst nach ausdruecklicher Bestaetigung mit confirmGoals.
+
+Bei Mess-Tagen:
+1. GPT entscheidet anhand Ziel, Historie, Check-in und Belastbarkeit, ob ein Messtag sinnvoll ist.
+2. Rufe proposeMeasurementDay auf.
+3. Halte die Anzahl der Messungen ueberschaubar.
+4. Speichere erst nach Nutzerbestaetigung oder nach Durchfuehrung mit createMeasurementDay.
 
 Wenn ein neuer relevanter Messwert auftaucht, z. B. rechter Ellenbogen, Leiste, Blutzucker, Sprunggefuehl oder Mobility:
 1. Frage den Wert kuenftig regelmaessig ab, wenn er fuer das Ziel relevant ist.
