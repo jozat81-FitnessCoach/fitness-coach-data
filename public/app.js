@@ -17,12 +17,21 @@ function percent(value) {
   return value == null ? "-" : `${Math.round(Number(value))}%`;
 }
 
+function valueWithUnit(value, unit) {
+  if (value == null || value === "") return "-";
+  return `${value}${unit ? ` ${unit}` : ""}`;
+}
+
 function formatDay(value) {
   return value ? formatDate.format(new Date(value)) : "-";
 }
 
 function notes(value) {
   return value ? value : "Keine Notiz hinterlegt.";
+}
+
+function firstText(...values) {
+  return values.find((value) => value != null && String(value).trim() !== "") ?? null;
 }
 
 function escapeHtml(value) {
@@ -52,18 +61,20 @@ function deriveScores(today, latestCheckIn) {
   const checkIn = today || latestCheckIn || {};
   const health = average([
     checkIn.readiness,
-    checkIn.soreness == null ? null : 11 - Number(checkIn.soreness),
-    checkIn.stress == null ? null : 11 - Number(checkIn.stress)
+    checkIn.pain_intensity == null ? null : 10 - Number(checkIn.pain_intensity),
+    checkIn.sickness == null ? null : 10 - Number(checkIn.sickness),
+    checkIn.stress == null ? null : 10 - Number(checkIn.stress)
   ]);
   const mental = average([
     checkIn.motivation,
     checkIn.energy,
-    checkIn.stress == null ? null : 11 - Number(checkIn.stress)
+    checkIn.stress == null ? null : 10 - Number(checkIn.stress)
   ]);
   const physical = average([
     checkIn.energy,
     checkIn.sleep_quality,
-    checkIn.soreness == null ? null : 11 - Number(checkIn.soreness)
+    checkIn.soreness == null ? null : 10 - Number(checkIn.soreness),
+    checkIn.mobility
   ]);
   const readiness = average([checkIn.readiness, health, mental, physical]);
 
@@ -78,6 +89,7 @@ function deriveScores(today, latestCheckIn) {
 function coachState(readiness, today) {
   const soreness = Number(today?.soreness || 0);
   const stress = Number(today?.stress || 0);
+  const pain = Number(today?.pain_intensity || 0);
 
   if (readiness == null) {
     return {
@@ -88,7 +100,7 @@ function coachState(readiness, today) {
     };
   }
 
-  if (readiness >= 75 && soreness <= 5 && stress <= 6) {
+  if (readiness >= 75 && soreness <= 5 && stress <= 6 && pain <= 3) {
     return {
       tone: "green",
       label: "Gruen",
@@ -138,7 +150,8 @@ function trainingPlan(readiness, today) {
       duration: `${workoutMinutes} Min erfasst`,
       why: "Der Coach nutzt den Check-out, um die naechste Empfehlung an Belastung und Koerperreaktion anzupassen.",
       focus: "Jetzt zaehlt ehrliches Feedback: Was wurde gemacht, wie fuehlte es sich an, und was sagt der Koerper danach?",
-      goal: "Lernkurve"
+      goal: "Lernkurve",
+      decision: "Check-out auswerten"
     };
   }
 
@@ -150,7 +163,8 @@ function trainingPlan(readiness, today) {
       duration: "3-5 Min",
       why: "Ohne Tagesdaten waere jede Empfehlung geraten.",
       focus: "Erst messen, dann entscheiden. Das ist heute der professionelle erste Schritt.",
-      goal: "Klarheit"
+      goal: "Klarheit",
+      decision: "Check-in noetig"
     };
   }
 
@@ -158,11 +172,12 @@ function trainingPlan(readiness, today) {
     return {
       badge: "Gruen",
       type: "Qualitaet oder Kraft",
-      when: "Wenn du aufgewärmt und wach bist",
+      when: "Wenn du aufgewaermt und wach bist",
       duration: "45-75 Min",
       why: "Die Tagesform erlaubt einen produktiven Trainingsreiz mit sauberer Technik.",
       focus: "Trainiere entschlossen, aber nicht hektisch. Jede Wiederholung soll aussehen wie eine gute Entscheidung.",
-      goal: "Leistungsaufbau"
+      goal: "Leistungsaufbau",
+      decision: "Trainieren"
     };
   }
 
@@ -174,7 +189,8 @@ function trainingPlan(readiness, today) {
       duration: "30-55 Min",
       why: "Genug Bereitschaft fuer Bewegung, aber nicht genug Puffer fuer maximale Intensitaet.",
       focus: "Heute gewinnst du ueber Kontrolle. Kein Ego-Training, sondern praezise Arbeit am naechsten Baustein.",
-      goal: "Konsistenz"
+      goal: "Konsistenz",
+      decision: "Angepasst trainieren"
     };
   }
 
@@ -185,11 +201,12 @@ function trainingPlan(readiness, today) {
     duration: "20-40 Min",
     why: "Der beste Trainingsreiz ist heute, das System zu beruhigen und morgen wieder belastbarer zu sein.",
     focus: "Disziplin bedeutet heute, nicht mehr zu erzwingen als dein Koerper sinnvoll verarbeiten kann.",
-    goal: "Regeneration"
+    goal: "Regeneration",
+    decision: "Recovery"
   };
 }
 
-function planFromStoredTrainingPlan(plan) {
+function planFromStoredTrainingPlan(plan, assessment) {
   if (!plan) return null;
   return {
     badge: plan.should_train ? "Plan" : "Recovery",
@@ -197,30 +214,33 @@ function planFromStoredTrainingPlan(plan) {
     when: plan.should_train ? "Heute gemaess Coach-Plan" : "Heute bewusst nicht trainieren",
     duration: plan.estimated_duration_minutes ? `${plan.estimated_duration_minutes} Min` : "-",
     why: plan.coach_reasoning || plan.coach_summary || "Der Plan basiert auf Check-in, Verlauf und Trainingsziel.",
-    focus: plan.mental_focus || "Konzentriert arbeiten, sauber rueckmelden, nicht gegen die Tagesform erzwingen.",
-    goal: plan.goal || "Trainingssteuerung"
+    focus: plan.mental_focus || assessment?.mental_alignment || "Konzentriert arbeiten, sauber rueckmelden, nicht gegen die Tagesform erzwingen.",
+    goal: plan.goal || "Trainingssteuerung",
+    decision: plan.should_train ? "Trainieren" : "Recovery / Pause"
   };
 }
 
 function setToneClasses(node, baseClass, tone) {
-  node.className = `${baseClass} ${tone}`;
+  if (node) node.className = `${baseClass} ${tone}`;
 }
 
-function renderWeeklyLoad(rows) {
-  const container = byId("weeklyLoad");
+function renderDailyProgress(rows) {
+  const container = byId("dailyProgress");
   container.innerHTML = "";
 
   if (!rows.length) {
-    container.innerHTML = '<p class="empty">Noch keine Trainingsdaten.</p>';
+    container.innerHTML = '<p class="empty">Noch keine Tagesdaten.</p>';
     return;
   }
 
   const chronological = [...rows].reverse();
-  const maxLoad = Math.max(...chronological.map((row) => Number(row.load || 0)), 1);
+  const maxLoad = Math.max(...chronological.map((row) => Number(row.training_load || 0)), 1);
 
   chronological.forEach((row) => {
-    const load = Number(row.load || 0);
+    const load = Number(row.training_load || 0);
     const width = Math.max(4, Math.round((load / maxLoad) * 100));
+    const readinessLabel = row.readiness == null ? "-" : score(row.readiness);
+    const minutes = Number(row.workout_minutes || 0);
     const el = document.createElement("div");
     el.className = "bar-row";
     el.innerHTML = `
@@ -228,7 +248,19 @@ function renderWeeklyLoad(rows) {
       <div class="bar-track"><div class="bar-fill" style="width: ${width}%"></div></div>
       <strong>${load} AU</strong>
     `;
+    el.querySelector("span").textContent = formatDay(row.entry_date);
+    el.title = `Readiness ${readinessLabel}, Training ${minutes} Min, Belastung ${load} AU`;
     container.appendChild(el);
+
+    const meta = document.createElement("div");
+    meta.className = "progress-meta";
+    meta.innerHTML = `
+      <span>Readiness ${readinessLabel}</span>
+      <span>${minutes} Min Training</span>
+      <span>Schlaf ${score(row.sleep_quality)}</span>
+      <span>Energie ${score(row.energy)}</span>
+    `;
+    container.appendChild(meta);
   });
 }
 
@@ -242,6 +274,7 @@ function renderCheckIns(rows) {
   }
 
   rows.forEach((row) => {
+    const pain = row.pain_present ? `${row.pain_area || "Beschwerden"} ${score(row.pain_intensity)}` : "keine Beschwerden";
     const el = document.createElement("article");
     el.className = "item";
     el.innerHTML = `
@@ -249,8 +282,10 @@ function renderCheckIns(rows) {
         <span>${formatDay(row.entry_date)}</span>
         <span class="item-meta">Energie ${score(row.energy)}</span>
       </div>
-      <p>Schlaf ${score(row.sleep_quality)} · Motivation ${score(row.motivation)} · Muskelkater ${score(row.soreness)}</p>
-      <p>${escapeHtml(notes(row.notes || row.pain_notes))}</p>
+      <p>Schlaf ${score(row.sleep_quality)} · Motivation ${score(row.motivation)} · Stress ${score(row.stress)}</p>
+      <p>Muskelkater ${score(row.soreness)} · Beine ${score(row.muscle_soreness_legs)} · Oberkoerper ${score(row.muscle_soreness_upper)} · Rumpf ${score(row.muscle_soreness_back_core)}</p>
+      <p>Beschwerden: ${escapeHtml(pain)}</p>
+      <p>${escapeHtml(notes(firstText(row.daily_context, row.daily_constraints, row.notes, row.pain_notes)))}</p>
     `;
     container.appendChild(el);
   });
@@ -273,8 +308,8 @@ function renderCheckOuts(rows) {
         <span>${escapeHtml(row.activity)}</span>
         <span class="item-meta">${formatDay(row.entry_date)}</span>
       </div>
-      <p>${row.duration_minutes} Min · Intensitaet ${score(row.intensity)} · RPE ${score(row.rpe)}</p>
-      <p>${escapeHtml(notes(row.notes || row.sets_summary))}</p>
+      <p>${row.duration_minutes} Min · Belastung ${score(row.intensity)} · RPE ${score(row.rpe)} · Technik ${score(row.technique_feel)}</p>
+      <p>${escapeHtml(notes(firstText(row.went_well, row.not_well, row.plan_deviations, row.notes, row.sets_summary)))}</p>
     `;
     container.appendChild(el);
   });
@@ -282,14 +317,112 @@ function renderCheckOuts(rows) {
 
 function renderLastWorkout(rows) {
   const latest = rows[0];
-  if (!latest) return;
+  if (!latest) {
+    text("lastWorkoutDate", "-");
+    byId("lastWorkout").innerHTML = "Noch kein Check-out vorhanden.";
+    return;
+  }
 
   text("lastWorkoutDate", formatDay(latest.entry_date));
   byId("lastWorkout").innerHTML = `
     <strong>${escapeHtml(latest.activity)}</strong>
-    <p>${latest.duration_minutes} Min · Intensitaet ${score(latest.intensity)} · RPE ${score(latest.rpe)}</p>
-    <p>${escapeHtml(notes(latest.notes || latest.sets_summary))}</p>
+    <p>${latest.duration_minutes} Min · Belastung ${score(latest.intensity)} · RPE ${score(latest.rpe)}</p>
+    <p>Qualitaet ${score(latest.training_quality)} · Energie ${score(latest.training_energy)} · Explosivitaet ${score(latest.explosiveness)}</p>
+    <p>Technik ${score(latest.technique_feel)} · Muskelgefuehl ${score(latest.muscle_feel)} · Regenerationsbedarf ${score(latest.recovery_need)}</p>
+    <p>${escapeHtml(notes(firstText(latest.went_well, latest.not_well, latest.plan_deviations, latest.notes, latest.sets_summary)))}</p>
   `;
+}
+
+function renderGoals(profile, goals = []) {
+  const activeGoal = goals[0];
+  text("profileName", profile?.display_name || "Profil");
+  text("activeGoalTitle", activeGoal?.title || profile?.primary_goal || "Noch kein aktives Ziel");
+  text("activeGoalDescription", activeGoal?.description || "Sobald Ziele gespeichert sind, werden sie hier fuer Coaching und Dashboard sichtbar.");
+
+  const container = byId("goalChips");
+  container.innerHTML = "";
+  if (!goals.length) {
+    container.innerHTML = '<span class="chip muted">Keine Ziele gespeichert</span>';
+    return;
+  }
+
+  goals.slice(0, 6).forEach((goal) => {
+    const chip = document.createElement("span");
+    chip.className = `chip ${goal.goal_level || "supporting"}`;
+    chip.textContent = goal.goal_level === "primary" ? `Hauptziel: ${goal.title}` : goal.title;
+    container.appendChild(chip);
+  });
+}
+
+function formatMetric(metric) {
+  if (!metric) return "-";
+  return valueWithUnit(metric.numeric_value ?? metric.text_value, metric.unit);
+}
+
+function latestMetric(metrics, key) {
+  return metrics.find((metric) => metric.metric_key === key);
+}
+
+function renderMeasurementDays(days = [], metrics = []) {
+  const container = byId("measurementDays");
+  text("measurementCount", `${days.length} Eintraege`);
+  text("lastMeasurementDay", days[0] ? formatDay(days[0].entry_date) : "-");
+  text("jumpHeightMetric", formatMetric(latestMetric(metrics, "jump_height")));
+  text("broadJumpMetric", formatMetric(latestMetric(metrics, "broad_jump")));
+  text("sprintMetric", formatMetric(latestMetric(metrics, "sprint_start_quality")));
+
+  container.innerHTML = "";
+  if (!days.length) {
+    container.innerHTML = '<div class="empty-state"><strong>Noch keine Messtage gespeichert.</strong><p>Wenn dein GPT einen Messtag plant oder auswertet, erscheinen hier Datum, Anlass und Interpretation.</p></div>';
+    return;
+  }
+
+  days.forEach((day) => {
+    const el = document.createElement("article");
+    el.className = "item";
+    el.innerHTML = `
+      <div class="item-title">
+        <span>${escapeHtml(day.title)}</span>
+        <span class="item-meta">${formatDay(day.entry_date)}</span>
+      </div>
+      <p>Status: ${escapeHtml(day.status || "-")} · Anlass: ${escapeHtml(day.trigger_reason || "-")}</p>
+      <p>${escapeHtml(notes(day.notes))}</p>
+    `;
+    container.appendChild(el);
+  });
+}
+
+function renderStrengthResults(checkOuts = []) {
+  const container = byId("strengthResults");
+  container.innerHTML = "";
+  const exercises = checkOuts.flatMap((checkOut) =>
+    (checkOut.exercise_results || []).map((exercise) => ({
+      ...exercise,
+      check_out_date: checkOut.entry_date
+    }))
+  );
+
+  if (!exercises.length) {
+    container.innerHTML = '<div class="empty-state"><strong>Noch keine Uebungsergebnisse gespeichert.</strong><p>Nach dem naechsten Check-out zeigt dieser Bereich Plan-Ist-Abweichungen fuer Saetze, Wiederholungen und Gewicht.</p></div>';
+    return;
+  }
+
+  exercises.slice(0, 8).forEach((exercise) => {
+    const planned = [exercise.planned_sets, exercise.planned_reps, exercise.planned_load_text].filter(Boolean).join(" x ");
+    const actual = [exercise.actual_sets, exercise.actual_reps, exercise.actual_load_text].filter(Boolean).join(" x ");
+    const el = document.createElement("article");
+    el.className = "item exercise-result";
+    el.innerHTML = `
+      <div class="item-title">
+        <span>${escapeHtml(exercise.exercise_name)}</span>
+        <span class="item-meta">${formatDay(exercise.check_out_date)}</span>
+      </div>
+      <p>Plan: ${escapeHtml(planned || "-")}</p>
+      <p>Ist: ${escapeHtml(actual || planned || "-")} · RPE ${score(exercise.rpe)} · Schmerz ${score(exercise.pain_score)}</p>
+      <p>${escapeHtml(notes(exercise.notes))}</p>
+    `;
+    container.appendChild(el);
+  });
 }
 
 function renderTrainingPlanExercises(plan) {
@@ -297,6 +430,10 @@ function renderTrainingPlanExercises(plan) {
   container.innerHTML = "";
 
   if (!plan?.exercises?.length) {
+    if (plan && !plan.should_train) {
+      container.innerHTML = '<div class="empty-state"><strong>Heute kein Training geplant.</strong><p>Der Coach hat einen Recovery- oder Pausentag gespeichert. Entscheidend sind Erholung, Schmerzfreiheit und Vorbereitung auf den naechsten Reiz.</p></div>';
+      return;
+    }
     container.innerHTML = '<div class="empty-state"><strong>Noch kein konkreter Uebungsplan gespeichert.</strong><p>Nach dem naechsten Check-in kann dein GPT einen Tagesplan mit Uebungen, Saetzen, Wiederholungen und Gewichten speichern.</p></div>';
     return;
   }
@@ -334,60 +471,83 @@ async function loadDashboard() {
   const scores = deriveScores(today, latestCheckIn);
   const readiness = assessment?.readiness_total ?? scores.readiness;
   const state = coachStateFromAssessment(assessment) || coachState(readiness, displayCheckIn);
-  const plan = planFromStoredTrainingPlan(storedPlan) || trainingPlan(readiness, today);
+  const plan = planFromStoredTrainingPlan(storedPlan, assessment) || trainingPlan(readiness, today);
+  const genericAssessment = /Pragmatische Tagesbewertung/i.test(state.headline || "");
+  const heroHeadline = genericAssessment && storedPlan?.coach_summary
+    ? storedPlan.coach_summary
+    : state.headline;
+  const heroReason = firstText(
+    assessment?.next_step_summary,
+    storedPlan?.coach_reasoning,
+    storedPlan?.coach_summary,
+    state.reason
+  );
 
   text("todayDate", displayCheckIn ? formatDay(displayCheckIn.entry_date) : "Heute");
-  text("coachHeadline", state.headline);
-  text("coachReason", state.reason);
+  text("coachHeadline", heroHeadline);
+  text("coachReason", heroReason);
   text("readinessScore", readiness == null ? "-" : Math.round(readiness));
+  text("decisionSummary", plan.decision);
+  text("nextStepSummary", assessment?.next_step_summary || plan.type);
   text("healthReadiness", percent(assessment?.readiness_health ?? scores.health));
   text("mentalReadiness", percent(assessment?.readiness_mental ?? scores.mental));
   text("physicalReadiness", percent(assessment?.readiness_physical ?? scores.physical));
-  text("todayLoad", today?.training_load == null ? "0 AU" : `${today.training_load} AU`);
 
   setToneClasses(byId("coachLight"), "traffic-pill", state.tone);
   text("coachLight", `Ampel ${state.label}`);
   byId("scoreRing").style.borderColor = state.tone === "green" ? "var(--accent)" : state.tone === "red" ? "var(--red)" : state.tone === "yellow" ? "var(--yellow)" : "var(--blue)";
 
+  renderGoals(data.profile, data.active_goals || []);
   text("stepBadge", plan.badge);
   text("trainingType", plan.type);
   text("trainingWhen", plan.when);
   text("trainingDuration", plan.duration);
   text("trainingWhy", plan.why);
   text("mentalFocus", assessment?.mental_alignment || plan.focus);
-  text("nutritionRecommendation", assessment?.nutrition_recommendation || "Noch keine Ernaehrungsempfehlung gespeichert.");
+  text("nutritionRecommendation", assessment?.nutrition_recommendation || storedPlan?.nutrition_recommendation || "Noch keine Ernaehrungsempfehlung gespeichert.");
   text("goalLink", plan.goal);
   renderTrainingPlanExercises(storedPlan);
 
   text("sleepQuality", score(displayCheckIn?.sleep_quality));
   text("sleepHours", displayCheckIn?.sleep_hours == null ? "-" : `${displayCheckIn.sleep_hours} h`);
   text("energyScore", score(displayCheckIn?.energy));
+  text("motivationScore", score(displayCheckIn?.motivation));
   text("sorenessScore", score(displayCheckIn?.soreness));
-  text("restingHr", displayCheckIn?.resting_hr == null ? "-" : `${displayCheckIn.resting_hr} bpm`);
-  text("hrv", displayCheckIn?.hrv_ms == null ? "-" : `${displayCheckIn.hrv_ms} ms`);
+  text("sorenessLegs", score(displayCheckIn?.muscle_soreness_legs));
+  text("sorenessUpper", score(displayCheckIn?.muscle_soreness_upper));
+  text("sorenessBackCore", score(displayCheckIn?.muscle_soreness_back_core));
   text("bodyWeight", displayCheckIn?.body_weight_kg == null ? "-" : `${displayCheckIn.body_weight_kg} kg`);
   text("stressScore", score(displayCheckIn?.stress));
+  text("mobilityScore", score(displayCheckIn?.mobility));
+  text("sicknessScore", score(displayCheckIn?.sickness));
+  text("painArea", displayCheckIn?.pain_present ? displayCheckIn?.pain_area || "ja" : "Nein");
+  text("painIntensity", score(displayCheckIn?.pain_intensity));
 
-  const recoveryComment = readiness == null
-    ? "Noch keine Recovery-Auswertung vorhanden."
-    : readiness >= 75
-      ? "Recovery wirkt stabil. Du kannst produktiv trainieren, solange Warm-up und Technik stimmen."
-      : readiness >= 55
-        ? "Recovery ist brauchbar, aber nicht voll. Setze heute auf kontrollierte Intensitaet und klare Grenzen."
-        : "Recovery ist niedrig. Heute bringt Entlastung mehr als Druck.";
+  const recoveryComment = assessment?.reason
+    ? assessment.reason
+    : readiness == null
+      ? "Noch keine Recovery-Auswertung vorhanden."
+      : readiness >= 75
+        ? "Recovery wirkt stabil. Du kannst produktiv trainieren, solange Warm-up und Technik stimmen."
+        : readiness >= 55
+          ? "Recovery ist brauchbar, aber nicht voll. Setze heute auf kontrollierte Intensitaet und klare Grenzen."
+          : "Recovery ist niedrig. Heute bringt Entlastung mehr als Druck.";
   text("recoveryComment", recoveryComment);
 
-  const riskComment = displayCheckIn?.soreness >= 7 || displayCheckIn?.stress >= 8
-    ? "Erhoehtes Risiko: Muskelkater, Stress oder Koerpersignale sprechen fuer eine reduzierte Einheit."
+  const hasRisk = Number(displayCheckIn?.soreness || 0) >= 7 || Number(displayCheckIn?.stress || 0) >= 8 || Number(displayCheckIn?.pain_intensity || 0) >= 4 || Number(displayCheckIn?.sickness || 0) >= 4;
+  const riskComment = hasRisk
+    ? "Erhoehtes Risiko: Muskelkater, Stress, Beschwerden oder Krankheitsgefuehl sprechen fuer Anpassung."
     : displayCheckIn
-      ? "Kein harter Warnhinweis aus den aktuellen Check-in-Werten. Trotzdem Schmerz- und Techniksignale beachten."
+      ? "Kein harter Warnhinweis aus den aktuellen Check-in-Werten. Schmerz- und Techniksignale trotzdem beachten."
       : "Der Coach bewertet Warnsignale, sobald ausreichend Check-in-Daten vorhanden sind.";
   text("riskComment", riskComment);
-  text("riskBadge", displayCheckIn?.soreness >= 7 || displayCheckIn?.stress >= 8 ? "Erhoeht" : "Normal");
+  text("riskBadge", hasRisk ? "Erhoeht" : "Normal");
 
-  renderWeeklyLoad(data.weekly_load || []);
+  renderDailyProgress(data.daily_history || []);
+  renderMeasurementDays(data.recent_measurement_days || [], data.metric_trends || []);
   renderCheckIns(data.recent_check_ins || []);
   renderCheckOuts(data.recent_check_outs || []);
+  renderStrengthResults(data.recent_check_outs || []);
   renderLastWorkout(data.recent_check_outs || []);
 }
 

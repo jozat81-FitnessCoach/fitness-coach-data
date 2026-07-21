@@ -29,6 +29,16 @@
           </div>
           <h2 id="coachHeadline">Daten werden geladen</h2>
           <p id="coachReason">Sobald ein Check-in vorhanden ist, bewertet der Coach deinen Status und den naechsten sinnvollen Schritt.</p>
+          <div class="decision-strip">
+            <div>
+              <span>Entscheidung</span>
+              <strong id="decisionSummary">Check-in abwarten</strong>
+            </div>
+            <div>
+              <span>Naechster Schritt</span>
+              <strong id="nextStepSummary">-</strong>
+            </div>
+          </div>
         </div>
         <div class="score-ring" id="scoreRing">
           <strong id="readinessScore">-</strong>
@@ -52,17 +62,29 @@
           <strong id="physicalReadiness">-</strong>
           <small id="physicalHint">Energie, Schlaf, Muskelkater</small>
         </article>
-        <article>
-          <span>Load heute</span>
-          <strong id="todayLoad">-</strong>
-          <small id="loadHint">Dauer x Intensitaet</small>
-        </article>
+      </section>
+
+      <section class="section-grid">
+        <section class="panel wide goal-panel">
+          <div class="panel-header">
+            <h2>Zielprofil</h2>
+            <span id="profileName">Profil</span>
+          </div>
+          <div class="goal-layout">
+            <div>
+              <span>Aktives Hauptziel</span>
+              <strong id="activeGoalTitle">-</strong>
+              <p id="activeGoalDescription">Noch kein Ziel geladen.</p>
+            </div>
+            <div id="goalChips" class="chip-list"></div>
+          </div>
+        </section>
       </section>
 
       <section class="action-grid">
-        <section class="panel">
+        <section class="panel training-panel">
           <div class="panel-header">
-            <h2>Naechster Schritt</h2>
+            <h2>Trainingsplan heute</h2>
             <span id="stepBadge">Planung</span>
           </div>
           <dl class="plan-list">
@@ -80,7 +102,10 @@
             <span id="focusBadge">Fokus</span>
           </div>
           <p id="mentalFocus">Heute geht es darum, den passenden Trainingsreiz zu setzen und nicht gegen die Tagesform zu arbeiten.</p>
-          <p id="nutritionRecommendation">Ernaehrungshinweise erscheinen hier, sobald der Coach ein Daily Assessment gespeichert hat.</p>
+          <div class="nutrition-box">
+            <span>Ernaehrung heute</span>
+            <p id="nutritionRecommendation">Ernaehrungshinweise erscheinen hier, sobald der Coach ein Daily Assessment gespeichert hat.</p>
+          </div>
           <div class="focus-line">
             <span>Zahlt ein auf</span>
             <strong id="goalLink">Konsistenz</strong>
@@ -101,9 +126,9 @@
         <section class="panel wide">
           <div class="panel-header">
             <h2>Leistungsentwicklung</h2>
-            <span>Trainingslast, Einheiten, Intensitaet</span>
+            <span>Readiness, Minuten, Belastung</span>
           </div>
-          <div id="weeklyLoad" class="bar-chart"></div>
+          <div id="dailyProgress" class="bar-chart"></div>
         </section>
       </section>
 
@@ -111,12 +136,9 @@
         <section class="panel">
           <div class="panel-header">
             <h2>Messtage und Sprungwerte</h2>
-            <span>Noch separat</span>
+            <span id="measurementCount">0 Eintraege</span>
           </div>
-          <div class="empty-state">
-            <strong>Noch keine Sprungwerte erfasst.</strong>
-            <p>Wenn dein Coach Messtage speichert, zeigen wir hier CMJ, Sprunghoehe, Abweichung vom Schnitt und Frische-Interpretation.</p>
-          </div>
+          <div id="measurementDays" class="list"></div>
         </section>
 
         <section class="panel">
@@ -124,11 +146,11 @@
             <h2>Sprung-Interpretation</h2>
             <span>Status</span>
           </div>
-          <dl class="compact-metrics">
-            <div><dt>Letzter Messtag</dt><dd>-</dd></div>
-            <div><dt>Trend</dt><dd>-</dd></div>
-            <div><dt>Bestwert</dt><dd>-</dd></div>
-            <div><dt>4-Wochen-Schnitt</dt><dd>-</dd></div>
+          <dl id="jumpMetrics" class="compact-metrics">
+            <div><dt>Letzter Messtag</dt><dd id="lastMeasurementDay">-</dd></div>
+            <div><dt>Sprunghoehe</dt><dd id="jumpHeightMetric">-</dd></div>
+            <div><dt>Standweitsprung</dt><dd id="broadJumpMetric">-</dd></div>
+            <div><dt>Antritt</dt><dd id="sprintMetric">-</dd></div>
           </dl>
         </section>
       </section>
@@ -143,7 +165,11 @@
             <div><dt>Schlafqualitaet</dt><dd id="sleepQuality">-</dd></div>
             <div><dt>Schlafdauer</dt><dd id="sleepHours">-</dd></div>
             <div><dt>Energie</dt><dd id="energyScore">-</dd></div>
-            <div><dt>Muskelkater</dt><dd id="sorenessScore">-</dd></div>
+            <div><dt>Motivation</dt><dd id="motivationScore">-</dd></div>
+            <div><dt>Muskelkater gesamt</dt><dd id="sorenessScore">-</dd></div>
+            <div><dt>Muskelkater Beine</dt><dd id="sorenessLegs">-</dd></div>
+            <div><dt>Muskelkater Oberkoerper</dt><dd id="sorenessUpper">-</dd></div>
+            <div><dt>Ruecken / Rumpf</dt><dd id="sorenessBackCore">-</dd></div>
           </dl>
         </section>
 
@@ -163,10 +189,12 @@
             <span>Check-in</span>
           </div>
           <dl class="compact-metrics">
-            <div><dt>Ruhepuls</dt><dd id="restingHr">-</dd></div>
-            <div><dt>HRV</dt><dd id="hrv">-</dd></div>
             <div><dt>Gewicht</dt><dd id="bodyWeight">-</dd></div>
             <div><dt>Stress</dt><dd id="stressScore">-</dd></div>
+            <div><dt>Beweglichkeit</dt><dd id="mobilityScore">-</dd></div>
+            <div><dt>Krankheitsgefuehl</dt><dd id="sicknessScore">-</dd></div>
+            <div><dt>Beschwerden</dt><dd id="painArea">-</dd></div>
+            <div><dt>Intensitaet</dt><dd id="painIntensity">-</dd></div>
           </dl>
         </section>
 
@@ -183,17 +211,14 @@
         <section class="panel">
           <div class="panel-header">
             <h2>Kraftwerte</h2>
-            <span>Noch separat</span>
+            <span>Plan-Ist</span>
           </div>
-          <div class="empty-state">
-            <strong>Noch keine strukturierten Kraftwerte.</strong>
-            <p>Aktuell landen Kraftdetails als Notiz im Check-out. Als naechsten Ausbauschritt koennen wir Uebung, Gewicht, Saetze und Wiederholungen strukturiert speichern.</p>
-          </div>
+          <div id="strengthResults" class="list"></div>
         </section>
 
         <section class="panel">
           <div class="panel-header">
-            <h2>Letzte Einheit</h2>
+            <h2>Check-out Auswertung</h2>
             <span id="lastWorkoutDate">-</span>
           </div>
           <div id="lastWorkout" class="workout-summary">Noch kein Check-out vorhanden.</div>
