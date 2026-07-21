@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
   title: Fitness Coach Data API
-  version: 0.2.0
+  version: 0.8.0
 servers:
-  - url: https://your-api.example.com
+  - url: https://fitness-coach-data.onrender.com
 components:
   securitySchemes:
     bearerAuth:
@@ -12,26 +12,20 @@ components:
   schemas:
     TrackedMetric:
       type: object
-      required:
-        - category
-        - metric_key
-        - label
+      required: [category, metric_key, label]
       properties:
         date:
           type: string
           format: date
         source_type:
           type: string
-          enum: [check_in, check_out, training_plan, manual]
+          enum: [check_in, check_out, training_plan, daily_assessment, measurement_day, manual]
         category:
           type: string
-          description: Bereich, z. B. Gesundheit, Schmerz, Sprung, Mobility, Blutzucker.
         metric_key:
           type: string
-          description: Maschinenlesbarer Name, z. B. right_elbow_pain.
         label:
           type: string
-          description: Anzeigename, z. B. Rechter Ellenbogen.
         numeric_value:
           type: number
         text_value:
@@ -44,50 +38,193 @@ components:
           type: number
         notes:
           type: string
+    ProfileSetup:
+      type: object
+      properties:
+        display_name:
+          type: string
+        timezone:
+          type: string
+        primary_goal:
+          type: string
+        user_context:
+          type: object
+          additionalProperties: true
+        available_equipment:
+          type: array
+          items:
+            type: string
+        training_constraints:
+          type: object
+          additionalProperties: true
+    GoalConfirm:
+      type: object
+      required: [goals]
+      properties:
+        profile_id:
+          type: string
+          format: uuid
+        goals:
+          type: array
+          items:
+            type: object
+            required: [title]
+            properties:
+              title:
+                type: string
+              parent_goal_id:
+                type: string
+                format: uuid
+              goal_level:
+                type: string
+                enum: [primary, secondary, supporting]
+              goal_type:
+                type: string
+              description:
+                type: string
+              priority:
+                type: integer
+                minimum: 1
+                maximum: 10
+              valid_from:
+                type: string
+                format: date
+              valid_until:
+                type: string
+                format: date
+              notes:
+                type: string
+              success_criteria:
+                type: object
+                additionalProperties: true
+              constraints:
+                type: object
+                additionalProperties: true
+              research_basis:
+                type: object
+                additionalProperties: true
+              metrics:
+                type: array
+                items:
+                  type: object
+                  required: [metric_key, label]
+                  properties:
+                    metric_key:
+                      type: string
+                    label:
+                      type: string
+                    role:
+                      type: string
+                    target_value:
+                      type: number
+                    target_unit:
+                      type: string
+                    target_direction:
+                      type: string
+                      enum: [increase, decrease, maintain, observe]
+                    measurement_frequency:
+                      type: string
+                    priority:
+                      type: integer
+                    notes:
+                      type: string
+              training_principles:
+                type: array
+                items:
+                  type: object
+                  required: [principle_type, title]
+                  properties:
+                    principle_type:
+                      type: string
+                    title:
+                      type: string
+                    description:
+                      type: string
+                    priority:
+                      type: integer
+                    active:
+                      type: boolean
     CheckIn:
       type: object
-      required:
-        - date
-        - sleep_quality
-        - energy
-        - soreness
-        - motivation
+      required: [date, sleep_quality, energy, soreness, motivation]
       properties:
         date:
           type: string
           format: date
+        local_datetime:
+          type: string
+          format: date-time
+        profile_id:
+          type: string
+          format: uuid
         body_weight_kg:
           type: number
         sleep_hours:
           type: number
         sleep_quality:
           type: integer
-          minimum: 1
+          minimum: 0
           maximum: 10
         energy:
           type: integer
-          minimum: 1
+          minimum: 0
           maximum: 10
         soreness:
           type: integer
-          minimum: 1
+          minimum: 0
           maximum: 10
+        muscle_soreness_legs:
+          type: integer
+          minimum: 0
+          maximum: 10
+        muscle_soreness_upper:
+          type: integer
+          minimum: 0
+          maximum: 10
+        muscle_soreness_back_core:
+          type: integer
+          minimum: 0
+          maximum: 10
+        muscle_soreness_other:
+          type: string
         stress:
           type: integer
-          minimum: 1
+          minimum: 0
           maximum: 10
         motivation:
           type: integer
-          minimum: 1
+          minimum: 0
           maximum: 10
         readiness:
           type: integer
-          minimum: 1
+          minimum: 0
           maximum: 10
-        resting_hr:
+        pain_present:
+          type: boolean
+        pain_area:
+          type: string
+        pain_intensity:
           type: integer
-        hrv_ms:
-          type: number
+          minimum: 0
+          maximum: 10
+        mobility:
+          type: integer
+          minimum: 0
+          maximum: 10
+        sickness:
+          type: integer
+          minimum: 0
+          maximum: 10
+        available_training_minutes:
+          type: integer
+        training_window:
+          type: string
+        available_equipment:
+          type: string
+        daily_constraints:
+          type: string
+        daily_context:
+          type: string
         pain_notes:
           type: string
         notes:
@@ -96,10 +233,57 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TrackedMetric"
+    DailyAssessment:
+      type: object
+      required: [date]
+      properties:
+        date:
+          type: string
+          format: date
+        profile_id:
+          type: string
+          format: uuid
+        check_in_id:
+          type: string
+          format: uuid
+        goal_id:
+          type: string
+          format: uuid
+        readiness_total:
+          type: integer
+          minimum: 0
+          maximum: 100
+        readiness_health:
+          type: integer
+          minimum: 0
+          maximum: 100
+        readiness_mental:
+          type: integer
+          minimum: 0
+          maximum: 100
+        readiness_physical:
+          type: integer
+          minimum: 0
+          maximum: 100
+        traffic_light:
+          type: string
+          enum: [green, yellow, red, neutral]
+        coach_statement:
+          type: string
+        reason:
+          type: string
+        mental_alignment:
+          type: string
+        nutrition_recommendation:
+          type: string
+        next_step_summary:
+          type: string
+        scoring:
+          type: object
+          additionalProperties: true
     ExercisePlan:
       type: object
-      required:
-        - exercise_name
+      required: [exercise_name]
       properties:
         sort_order:
           type: integer
@@ -107,42 +291,40 @@ components:
           type: string
         block_name:
           type: string
-          description: Warm-up, Main, Assistance, Cooldown.
         sets:
           type: string
-          description: Geplante Saetze, z. B. 3.
         reps:
           type: string
-          description: Geplante Wiederholungen, z. B. 6 oder 8 je Seite.
         load_text:
           type: string
-          description: Geplantes Gewicht, z. B. 90 kg oder 20 kg je Hand.
         rpe_target:
           type: string
-          description: Ziel-RPE, z. B. 7.
         rest_seconds:
           type: integer
         tempo:
           type: string
         technical_notes:
           type: string
-          description: Kurze allgemeine Ausfuehrungserklaerung.
         today_focus:
           type: string
-          description: Tagesfokus, z. B. langsam runter, explosiv hoch.
         alternative:
           type: string
-          description: Anpassung, falls Schmerz oder Ermuendung auftritt.
     TrainingPlan:
       type: object
-      required:
-        - date
-        - should_train
-        - session_title
+      required: [date, should_train, session_title]
       properties:
         date:
           type: string
           format: date
+        profile_id:
+          type: string
+          format: uuid
+        goal_id:
+          type: string
+          format: uuid
+        daily_assessment_id:
+          type: string
+          format: uuid
         should_train:
           type: boolean
         status:
@@ -164,6 +346,8 @@ components:
           type: string
         mental_focus:
           type: string
+        nutrition_recommendation:
+          type: string
         warnings:
           type: string
         exercises:
@@ -174,51 +358,9 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TrackedMetric"
-    CheckOut:
-      type: object
-      required:
-        - date
-        - activity
-        - duration_minutes
-        - intensity
-      properties:
-        date:
-          type: string
-          format: date
-        activity:
-          type: string
-        workout_type:
-          type: string
-        duration_minutes:
-          type: integer
-        intensity:
-          type: integer
-          minimum: 1
-          maximum: 10
-        rpe:
-          type: integer
-          minimum: 1
-          maximum: 10
-        calories:
-          type: integer
-        distance_km:
-          type: number
-        sets_summary:
-          type: string
-        coach_rating:
-          type: integer
-          minimum: 1
-          maximum: 10
-        felt_after:
-          type: integer
-          minimum: 1
-          maximum: 10
-        notes:
-          type: string
     ExerciseResult:
       type: object
-      required:
-        - exercise_name
+      required: [exercise_name]
       properties:
         plan_exercise_id:
           type: string
@@ -241,34 +383,236 @@ components:
           description: Mit geplantem Wert vorausfuellen und nur bei Abweichung aendern.
         rpe:
           type: integer
-          minimum: 1
+          minimum: 0
           maximum: 10
         pain_score:
           type: integer
-          minimum: 1
+          minimum: 0
           maximum: 10
         completed:
           type: boolean
         notes:
           type: string
     PlannedCheckOut:
-      allOf:
-        - $ref: "#/components/schemas/CheckOut"
-        - type: object
+      type: object
+      required: [date, activity, duration_minutes, intensity]
+      properties:
+        date:
+          type: string
+          format: date
+        local_datetime:
+          type: string
+          format: date-time
+        profile_id:
+          type: string
+          format: uuid
+        plan_id:
+          type: string
+          format: uuid
+        activity:
+          type: string
+        workout_type:
+          type: string
+        duration_minutes:
+          type: integer
+        intensity:
+          type: integer
+          minimum: 0
+          maximum: 10
+        rpe:
+          type: integer
+          minimum: 0
+          maximum: 10
+        training_quality:
+          type: integer
+          minimum: 0
+          maximum: 10
+        training_energy:
+          type: integer
+          minimum: 0
+          maximum: 10
+        explosiveness:
+          type: integer
+          minimum: 0
+          maximum: 10
+        focus:
+          type: integer
+          minimum: 0
+          maximum: 10
+        pain_present:
+          type: boolean
+        pain_area:
+          type: string
+        pain_intensity:
+          type: integer
+          minimum: 0
+          maximum: 10
+        muscle_feel:
+          type: integer
+          minimum: 0
+          maximum: 10
+        technique_feel:
+          type: integer
+          minimum: 0
+          maximum: 10
+        exhaustion_after:
+          type: integer
+          minimum: 0
+          maximum: 10
+        recovery_need:
+          type: integer
+          minimum: 0
+          maximum: 10
+        went_well:
+          type: string
+        not_well:
+          type: string
+        plan_deviations:
+          type: string
+        notes:
+          type: string
+        exercise_results:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExerciseResult"
+        tracked_metrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/TrackedMetric"
+    MeasurementDay:
+      type: object
+      required: [date, title]
+      properties:
+        date:
+          type: string
+          format: date
+        profile_id:
+          type: string
+          format: uuid
+        goal_id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          type: string
+          enum: [proposed, planned, completed, skipped]
+        trigger_reason:
+          type: string
+        notes:
+          type: string
+        tests:
+          type: array
+          items:
+            type: object
+            required: [metric_key, test_name]
+            properties:
+              metric_key:
+                type: string
+              test_name:
+                type: string
+              protocol:
+                type: string
+              unit:
+                type: string
+              target_direction:
+                type: string
+                enum: [increase, decrease, maintain, observe]
+              sort_order:
+                type: integer
+              research_basis:
+                type: object
+                additionalProperties: true
+              result:
+                type: object
+                properties:
+                  value_number:
+                    type: number
+                  value_text:
+                    type: string
+                  unit:
+                    type: string
+                  attempt_no:
+                    type: integer
+                  notes:
+                    type: string
+        evaluation:
+          type: object
           properties:
-            plan_id:
+            summary:
               type: string
-            exercise_results:
-              type: array
-              items:
-                $ref: "#/components/schemas/ExerciseResult"
-            tracked_metrics:
-              type: array
-              items:
-                $ref: "#/components/schemas/TrackedMetric"
+            strengths:
+              type: string
+            risks:
+              type: string
+            recommendations:
+              type: string
 security:
   - bearerAuth: []
 paths:
+  /profile/current:
+    get:
+      operationId: getCurrentProfile
+      summary: Holt das aktuelle Profil und das aktive Ziel.
+      responses:
+        "200":
+          description: Profil und aktives Ziel.
+  /profile/setup:
+    post:
+      operationId: setupProfile
+      summary: Speichert oder aktualisiert Nutzerkontext, Equipment und Zielkontext.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProfileSetup"
+      responses:
+        "200":
+          description: Profil gespeichert.
+  /goals:
+    get:
+      operationId: getGoals
+      summary: Holt Ziele und Unterziele des aktuellen Profils.
+      responses:
+        "200":
+          description: Ziele.
+  /goals/propose:
+    post:
+      operationId: proposeGoals
+      summary: Erstellt einen Ziel-/Mess-/Prinzipienvorschlag. Noch nicht speichern; erst mit Nutzer abstimmen.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                profile_id:
+                  type: string
+      responses:
+        "200":
+          description: Vorschlag.
+  /goals/confirm:
+    post:
+      operationId: confirmGoals
+      summary: Speichert bestaetigte Ziele, Metriken und Trainingsprinzipien.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoalConfirm"
+      responses:
+        "201":
+          description: Ziele gespeichert.
+  /check-in-template:
+    get:
+      operationId: getCheckInTemplate
+      summary: Holt die kopierbare, thematisch gruppierte Standard-Check-in-Vorlage.
+      responses:
+        "200":
+          description: Check-in-Vorlage.
   /check-ins:
     post:
       operationId: createCheckIn
@@ -282,6 +626,33 @@ paths:
       responses:
         "201":
           description: Check-in gespeichert.
+  /daily-assessments:
+    post:
+      operationId: createDailyAssessment
+      summary: Speichert Coach-Ampel, Readiness-Werte, Coach-Statement, Mentalfokus und Ernaehrungsempfehlung.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DailyAssessment"
+      responses:
+        "201":
+          description: Daily Assessment gespeichert.
+  /daily-assessments/from-check-in/{checkInId}:
+    post:
+      operationId: createPragmaticDailyAssessmentFromCheckIn
+      summary: Erstellt eine pragmatische Startbewertung aus einem gespeicherten Check-in.
+      parameters:
+        - in: path
+          name: checkInId
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "201":
+          description: Daily Assessment erstellt.
   /training-plans:
     post:
       operationId: createTrainingPlan
@@ -305,14 +676,13 @@ paths:
   /check-out-template:
     get:
       operationId: getCheckOutTemplate
-      summary: Holt den heutigen Plan als Check-out-Vorlage. Die Ist-Werte sind bereits mit den geplanten Werten vorausgefuellt.
+      summary: Holt den heutigen Plan als kopierbare Check-out-Vorlage. Die Ist-Werte sind mit Planwerten vorausgefuellt.
       parameters:
         - in: query
           name: date
           schema:
             type: string
             format: date
-          required: false
       responses:
         "200":
           description: Check-out-Vorlage mit vorausgefuellten Uebungen.
@@ -329,23 +699,41 @@ paths:
       responses:
         "201":
           description: Check-out und Uebungsergebnisse gespeichert.
-  /check-outs:
+  /measurement-days/propose:
     post:
-      operationId: createCheckOut
-      summary: Speichert einen einfachen Trainings-Check-out ohne Plan-Ist-Abgleich.
+      operationId: proposeMeasurementDay
+      summary: Schlaegt einen ueberschaubaren, zum Ziel passenden Messtag vor. Erst mit Nutzer abstimmen.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                profile_id:
+                  type: string
+                goal_id:
+                  type: string
+      responses:
+        "200":
+          description: Messtag-Vorschlag.
+  /measurement-days:
+    post:
+      operationId: createMeasurementDay
+      summary: Speichert Messtag, Tests, optionale Ergebnisse und Auswertung.
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CheckOut"
+              $ref: "#/components/schemas/MeasurementDay"
       responses:
         "201":
-          description: Check-out gespeichert.
+          description: Messtag gespeichert.
   /dashboard-summary:
     get:
       operationId: getDashboardSummary
-      summary: Holt den aktuellen Dashboard-Zustand inklusive heutigem Trainingsplan.
+      summary: Holt den aktuellen Dashboard-Zustand inklusive Zielen, Daily Assessment und heutigem Trainingsplan.
       responses:
         "200":
           description: Aktueller Dashboard-Zustand.
