@@ -357,8 +357,9 @@ function buildMeasurementDayProposal(goal) {
 
 async function getDashboardSummary() {
   const profile = await getOrCreateDefaultProfile();
-  const [today, recentCheckIns, recentCheckOuts, weeklyLoad, todayTrainingPlan, metricTrends, activeGoals, latestAssessment, recentMeasurementDays] = await Promise.all([
+  const [today, dailyHistory, recentCheckIns, recentCheckOuts, weeklyLoad, todayTrainingPlan, metricTrends, activeGoals, latestAssessment, recentMeasurementDays] = await Promise.all([
     query("select * from daily_summary where entry_date = current_date"),
+    query("select * from daily_summary order by entry_date desc limit 14"),
     query("select * from check_ins order by entry_date desc, created_at desc limit 14"),
     query("select * from check_outs order by entry_date desc, created_at desc limit 20"),
     query(
@@ -405,13 +406,35 @@ async function getDashboardSummary() {
     )
   ]);
 
+  let recentCheckOutRows = recentCheckOuts.rows;
+  const checkOutIds = recentCheckOutRows.map((row) => row.id);
+  if (checkOutIds.length) {
+    const exerciseResults = await query(
+      `select *
+      from exercise_results
+      where check_out_id = any($1::uuid[])
+      order by entry_date desc, created_at asc`,
+      [checkOutIds]
+    );
+    const byCheckOut = exerciseResults.rows.reduce((acc, row) => {
+      acc[row.check_out_id] = acc[row.check_out_id] || [];
+      acc[row.check_out_id].push(row);
+      return acc;
+    }, {});
+    recentCheckOutRows = recentCheckOutRows.map((row) => ({
+      ...row,
+      exercise_results: byCheckOut[row.id] || []
+    }));
+  }
+
   return {
     profile,
     active_goals: activeGoals.rows,
     latest_daily_assessment: latestAssessment.rows[0] ?? null,
     today: today.rows[0] ?? null,
+    daily_history: dailyHistory.rows,
     recent_check_ins: recentCheckIns.rows,
-    recent_check_outs: recentCheckOuts.rows,
+    recent_check_outs: recentCheckOutRows,
     weekly_load: weeklyLoad.rows,
     today_training_plan: todayTrainingPlan,
     metric_trends: metricTrends.rows,
