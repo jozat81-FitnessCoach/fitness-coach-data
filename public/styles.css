@@ -157,6 +157,10 @@ main {
   margin-top: 18px;
 }
 
+.decision-strip.single {
+  grid-template-columns: 1fr;
+}
+
 .decision-strip div,
 .goal-layout > div {
   padding: 13px;
@@ -424,7 +428,8 @@ dd {
   flex-direction: column;
 }
 
-.mental-panel > p {
+.mental-panel > p,
+.nutrition-panel > p {
   flex: 1;
 }
 
