@@ -34,6 +34,31 @@ function firstText(...values) {
   return values.find((value) => value != null && String(value).trim() !== "") ?? null;
 }
 
+function compactSentence(value, maxLength = 52) {
+  const clean = String(value || "").replace(/\s+/g, " ").trim();
+  if (!clean) return null;
+  if (clean.length <= maxLength) return clean;
+  const firstSentence = clean.split(/[.!?]/)[0]?.trim();
+  if (firstSentence && firstSentence.length <= maxLength) return firstSentence;
+  return `${clean.slice(0, maxLength - 1).trim()}...`;
+}
+
+function deriveHeroHeadline(state, plan, assessment) {
+  if (!assessment && state?.headline) return state.headline;
+  if (plan?.decision === "Recovery / Pause" || plan?.badge === "Recovery") return "Recovery bewusst nutzen";
+  if (plan?.decision === "Angepasst trainieren") return "Qualitaet vor Intensitaet";
+  if (plan?.decision === "Trainieren") return "Heute gezielt trainieren";
+  if (plan?.decision === "Check-out auswerten") return "Einheit sauber auswerten";
+  if (plan?.type && plan.type !== "-") return compactSentence(plan.type, 42);
+  return compactSentence(state?.headline, 42) || "Tagesstatus geladen";
+}
+
+function missingTrainingText(kind) {
+  return kind === "technical"
+    ? "Bitte im Coach-Plan ergaenzen: kurze Technik-Anleitung fehlt."
+    : "Bitte im Coach-Plan ergaenzen: heutiger Fokus fehlt.";
+}
+
 function escapeHtml(value) {
   return String(value ?? "")
     .replaceAll("&", "&amp;")
@@ -233,10 +258,10 @@ function renderDailyProgress(rows) {
     return;
   }
 
-  const chronological = [...rows].reverse();
-  const maxLoad = Math.max(...chronological.map((row) => Number(row.training_load || 0)), 1);
+  const latestFirst = [...rows];
+  const maxLoad = Math.max(...latestFirst.map((row) => Number(row.training_load || 0)), 1);
 
-  chronological.forEach((row) => {
+  latestFirst.forEach((row) => {
     const load = Number(row.training_load || 0);
     const width = Math.max(4, Math.round((load / maxLoad) * 100));
     const readinessLabel = row.readiness == null ? "-" : score(row.readiness);
@@ -447,8 +472,8 @@ function renderTrainingPlanExercises(plan) {
         <h3>${exercise.sort_order}. ${escapeHtml(exercise.exercise_name)}</h3>
         <span class="exercise-prescription">${escapeHtml(prescription || "geplant")}</span>
       </header>
-      <p><b>Technik:</b> ${escapeHtml(notes(exercise.technical_notes))}</p>
-      <p><b>Heute achten auf:</b> ${escapeHtml(notes(exercise.today_focus))}</p>
+      <p><b>Technik:</b> ${escapeHtml(exercise.technical_notes || missingTrainingText("technical"))}</p>
+      <p><b>Heute achten auf:</b> ${escapeHtml(exercise.today_focus || missingTrainingText("focus"))}</p>
       <p><b>RPE/Pause:</b> ${escapeHtml(exercise.rpe_target || "-")} · ${exercise.rest_seconds ? `${exercise.rest_seconds} Sek` : "-"}</p>
       ${exercise.alternative ? `<p><b>Alternative:</b> ${escapeHtml(exercise.alternative)}</p>` : ""}
     `;
@@ -472,14 +497,12 @@ async function loadDashboard() {
   const readiness = assessment?.readiness_total ?? scores.readiness;
   const state = coachStateFromAssessment(assessment) || coachState(readiness, displayCheckIn);
   const plan = planFromStoredTrainingPlan(storedPlan, assessment) || trainingPlan(readiness, today);
-  const genericAssessment = /Pragmatische Tagesbewertung/i.test(state.headline || "");
-  const heroHeadline = genericAssessment && storedPlan?.coach_summary
-    ? storedPlan.coach_summary
-    : state.headline;
+  const heroHeadline = deriveHeroHeadline(state, plan, assessment);
   const heroReason = firstText(
-    assessment?.next_step_summary,
     storedPlan?.coach_reasoning,
     storedPlan?.coach_summary,
+    assessment?.next_step_summary,
+    assessment?.coach_statement,
     state.reason
   );
 
@@ -487,8 +510,7 @@ async function loadDashboard() {
   text("coachHeadline", heroHeadline);
   text("coachReason", heroReason);
   text("readinessScore", readiness == null ? "-" : Math.round(readiness));
-  text("decisionSummary", plan.decision);
-  text("nextStepSummary", assessment?.next_step_summary || plan.type);
+  text("targetProgressStatement", assessment?.next_step_summary || plan.why || plan.focus);
   text("healthReadiness", percent(assessment?.readiness_health ?? scores.health));
   text("mentalReadiness", percent(assessment?.readiness_mental ?? scores.mental));
   text("physicalReadiness", percent(assessment?.readiness_physical ?? scores.physical));
@@ -500,8 +522,8 @@ async function loadDashboard() {
   renderGoals(data.profile, data.active_goals || []);
   text("stepBadge", plan.badge);
   text("trainingType", plan.type);
-  text("trainingWhen", plan.when);
-  text("trainingDuration", plan.duration);
+  text("trainingTiming", `${plan.when} · ${plan.duration}`);
+  text("trainingGoal", plan.goal);
   text("trainingWhy", plan.why);
   text("mentalFocus", assessment?.mental_alignment || plan.focus);
   text("nutritionRecommendation", assessment?.nutrition_recommendation || storedPlan?.nutrition_recommendation || "Noch keine Ernaehrungsempfehlung gespeichert.");
