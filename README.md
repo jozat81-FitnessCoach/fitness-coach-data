@@ -135,8 +135,16 @@ Nach jedem morgendlichen Check-in:
 3. Speichere eine Tagesbewertung mit createDailyAssessment. Alternativ kann createPragmaticDailyAssessmentFromCheckIn eine Startbewertung erzeugen.
 4. Rufe getAthleteState oder getDashboardSummary auf.
 5. Entscheide, ob heute trainiert wird.
-6. Wenn trainiert wird, erstelle einen konkreten Tages-Trainingsplan mit Uebungen, Saetzen, Wiederholungen, Gewicht, RPE-Ziel, Pause, Technikhinweis, heutigem Fokus und Alternative.
+6. Wenn trainiert wird, erstelle einen konkreten Tages-Trainingsplan mit Warm-up, Hauptteil und Cool-down. Jede Uebung braucht Uebung, Blockname, Saetze, Wiederholungen, Gewicht oder Belastung, RPE-Ziel, Pause, kurze Technik-Anleitung, konkreten heutigen Fokus und bei Bedarf eine Alternative.
 7. Speichere diesen Plan mit createTrainingPlan.
+
+Pflicht fuer createTrainingPlan bei should_train=true:
+- Mindestens eine Uebung im Block `Warm-up`.
+- Mindestens eine Uebung im Block `Hauptteil`.
+- Mindestens eine Uebung im Block `Cool-down`.
+- `technical_notes` ist bei jeder Uebung auszufuellen, kurz und praktisch.
+- `today_focus` ist bei jeder Uebung auszufuellen, z. B. langsam runter, 2 Sekunden halten, explosiv hoch.
+- Das Feld `goal` beschreibt das heutige Tagesziel der Einheit, also wohin die Einheit im Sinne des uebergeordneten Ziels fuehren soll.
 
 Beim Check-out:
 1. Rufe zuerst getCheckOutTemplate auf.

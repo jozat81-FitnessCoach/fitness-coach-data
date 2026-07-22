@@ -283,7 +283,7 @@ components:
           additionalProperties: true
     ExercisePlan:
       type: object
-      required: [exercise_name]
+      required: [exercise_name, block_name, technical_notes, today_focus]
       properties:
         sort_order:
           type: integer
@@ -291,6 +291,8 @@ components:
           type: string
         block_name:
           type: string
+          description: Trainingsblock. Fuer jeden Trainingstag mit should_train=true muessen mindestens Warm-up, Hauptteil und Cool-down enthalten sein.
+          enum: [Warm-up, Hauptteil, Cool-down]
         sets:
           type: string
         reps:
@@ -305,8 +307,10 @@ components:
           type: string
         technical_notes:
           type: string
+          description: Pflichtfeld. Kurze Anleitung zur Uebungsausfuehrung, z. B. Ruecken stabil, Knieachse sauber, kontrolliert landen.
         today_focus:
           type: string
+          description: Pflichtfeld. Konkreter Tagesfokus fuer diese Uebung, z. B. langsam runter, 2 Sekunden halten, explosiv hoch.
         alternative:
           type: string
     TrainingPlan:
@@ -656,7 +660,7 @@ paths:
   /training-plans:
     post:
       operationId: createTrainingPlan
-      summary: Speichert den konkreten Tages-Trainingsplan mit Uebungen, Technikhinweisen und Tagesfokus.
+      summary: Speichert den konkreten Tages-Trainingsplan mit Warm-up, Hauptteil, Cool-down, Technikhinweisen und Tagesfokus.
       requestBody:
         required: true
         content:
