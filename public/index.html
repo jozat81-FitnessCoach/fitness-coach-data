@@ -29,14 +29,10 @@
           </div>
           <h2 id="coachHeadline">Daten werden geladen</h2>
           <p id="coachReason">Sobald ein Check-in vorhanden ist, bewertet der Coach deinen Status und den naechsten sinnvollen Schritt.</p>
-          <div class="decision-strip">
+          <div class="decision-strip single">
             <div>
-              <span>Entscheidung</span>
-              <strong id="decisionSummary">Check-in abwarten</strong>
-            </div>
-            <div>
-              <span>Naechster Schritt</span>
-              <strong id="nextStepSummary">-</strong>
+              <span>Naechster Schritt zur Zielerreichung</span>
+              <strong id="targetProgressStatement">-</strong>
             </div>
           </div>
         </div>
@@ -89,8 +85,8 @@
           </div>
           <dl class="plan-list">
             <div><dt>Trainingsart</dt><dd id="trainingType">-</dd></div>
-            <div><dt>Wann</dt><dd id="trainingWhen">-</dd></div>
-            <div><dt>Dauer</dt><dd id="trainingDuration">-</dd></div>
+            <div><dt>Wann / Dauer</dt><dd id="trainingTiming">-</dd></div>
+            <div><dt>Tagesziel</dt><dd id="trainingGoal">-</dd></div>
             <div><dt>Warum</dt><dd id="trainingWhy">-</dd></div>
           </dl>
           <div id="trainingPlanExercises" class="exercise-plan-list"></div>
@@ -102,14 +98,18 @@
             <span id="focusBadge">Fokus</span>
           </div>
           <p id="mentalFocus">Heute geht es darum, den passenden Trainingsreiz zu setzen und nicht gegen die Tagesform zu arbeiten.</p>
-          <div class="nutrition-box">
-            <span>Ernaehrung heute</span>
-            <p id="nutritionRecommendation">Ernaehrungshinweise erscheinen hier, sobald der Coach ein Daily Assessment gespeichert hat.</p>
-          </div>
           <div class="focus-line">
             <span>Zahlt ein auf</span>
             <strong id="goalLink">Konsistenz</strong>
           </div>
+        </section>
+
+        <section class="panel nutrition-panel">
+          <div class="panel-header">
+            <h2>Ernaehrung heute</h2>
+            <span>Coach</span>
+          </div>
+          <p id="nutritionRecommendation">Ernaehrungshinweise erscheinen hier, sobald der Coach ein Daily Assessment gespeichert hat.</p>
         </section>
       </section>
 
