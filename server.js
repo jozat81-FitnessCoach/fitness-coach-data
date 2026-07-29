@@ -1063,37 +1063,6 @@ app.post("/training-plans", async (req, res) => {
   }
 
   const data = parsed.data;
-  if (data.should_train) {
-    const exercises = data.exercises ?? [];
-    const normalizeBlock = (value = "") => value.toLowerCase().replace(/[^a-z]/g, "");
-    const hasWarmUp = exercises.some((exercise) => {
-      const block = normalizeBlock(exercise.block_name);
-      const name = normalizeBlock(exercise.exercise_name);
-      return block.includes("warmup") || block.includes("warm") || name.includes("warmup") || name.includes("warm");
-    });
-    const hasCoolDown = exercises.some((exercise) => {
-      const block = normalizeBlock(exercise.block_name);
-      const name = normalizeBlock(exercise.exercise_name);
-      return block.includes("cooldown") || block.includes("cool") || name.includes("cooldown") || name.includes("cool");
-    });
-    const incomplete = exercises
-      .filter((exercise) => !exercise.technical_notes || !exercise.today_focus)
-      .map((exercise) => exercise.exercise_name);
-
-    if (!hasWarmUp || !hasCoolDown || incomplete.length) {
-      res.status(400).json({
-        error: "Incomplete training plan",
-        instruction: "Ein Trainingsplan mit should_train=true muss Warm-up, Hauptteil und Cool-down enthalten. Jede Uebung braucht technical_notes und today_focus.",
-        missing: {
-          warm_up: !hasWarmUp,
-          cool_down: !hasCoolDown,
-          exercise_details: incomplete
-        }
-      });
-      return;
-    }
-  }
-
   const profile = await getProfile(data.profile_id);
   const planResult = await query(
     `insert into training_plans (
@@ -1184,9 +1153,15 @@ app.get("/check-out-template", async (req, res) => {
   const exerciseDefaults = plan.exercises.map((exercise) => ({
     plan_exercise_id: exercise.id,
     exercise_name: exercise.exercise_name,
+    planned_block_name: exercise.block_name,
     planned_sets: exercise.sets,
     planned_reps: exercise.reps,
     planned_load_text: exercise.load_text,
+    planned_rpe_target: exercise.rpe_target,
+    planned_rest_seconds: exercise.rest_seconds,
+    planned_technical_notes: exercise.technical_notes,
+    planned_today_focus: exercise.today_focus,
+    planned_alternative: exercise.alternative,
     actual_sets: exercise.sets,
     actual_reps: exercise.reps,
     actual_load_text: exercise.load_text,
@@ -1198,7 +1173,13 @@ app.get("/check-out-template", async (req, res) => {
 
   const exerciseLines = exerciseDefaults.flatMap((exercise, index) => [
     `Uebung ${index + 1}: ${exercise.exercise_name}`,
+    `- Block: ${exercise.planned_block_name ?? "-"}`,
     `- Geplant: ${exercise.planned_sets ?? "-"} x ${exercise.planned_reps ?? "-"} @ ${exercise.planned_load_text ?? "-"}`,
+    `- RPE-Ziel / Belastungsziel: ${exercise.planned_rpe_target ?? "-"}`,
+    `- Pause: ${exercise.planned_rest_seconds != null ? `${exercise.planned_rest_seconds} Sekunden` : "-"}`,
+    `- Technik: ${exercise.planned_technical_notes ?? "-"}`,
+    `- Heute achten auf: ${exercise.planned_today_focus ?? "-"}`,
+    `- Alternative: ${exercise.planned_alternative ?? "-"}`,
     `- Gemacht: ${exercise.actual_sets ?? "-"} x ${exercise.actual_reps ?? "-"} @ ${exercise.actual_load_text ?? "-"}`,
     "- RPE / Anstrengung (0 = sehr leicht, 10 = maximal): ___/10",
     "- Schmerz / Beschwerden bei der Uebung (0 = keine, 10 = stark): ___/10",

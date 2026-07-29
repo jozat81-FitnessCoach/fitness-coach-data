@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Fitness Coach Data API
-  version: 0.8.0
+  version: 0.9.0
 servers:
   - url: https://fitness-coach-data.onrender.com
 components:
@@ -283,7 +283,7 @@ components:
           additionalProperties: true
     ExercisePlan:
       type: object
-      required: [exercise_name, block_name, technical_notes, today_focus]
+      required: [exercise_name, block_name, sets, reps, rpe_target, rest_seconds, technical_notes, today_focus, alternative]
       properties:
         sort_order:
           type: integer
@@ -295,14 +295,17 @@ components:
           enum: [Warm-up, Hauptteil, Cool-down]
         sets:
           type: string
+          description: Satzanzahl; bei zeitbasierten Uebungen eine passende Angabe wie "1".
         reps:
           type: string
+          description: Wiederholungen oder Dauer, z. B. "8" oder "45 Sekunden".
         load_text:
           type: string
         rpe_target:
           type: string
         rest_seconds:
           type: integer
+          minimum: 0
         tempo:
           type: string
         technical_notes:
@@ -313,9 +316,10 @@ components:
           description: Pflichtfeld. Konkreter Tagesfokus fuer diese Uebung, z. B. langsam runter, 2 Sekunden halten, explosiv hoch.
         alternative:
           type: string
+          description: Alternative bei Beschwerden, Zeitmangel oder fehlender Ausstattung.
     TrainingPlan:
       type: object
-      required: [date, should_train, session_title]
+      required: [date, should_train, session_title, goal]
       properties:
         date:
           type: string
@@ -340,6 +344,7 @@ components:
           type: string
         goal:
           type: string
+          description: Konkretes Tagesziel der Einheit oder des Recovery-/Pausenplans.
         estimated_duration_minutes:
           type: integer
         intensity_target:

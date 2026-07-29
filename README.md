@@ -15,6 +15,8 @@ Diese kleine API ist die Datenbasis fuer den Fitness-Coach:
 - `src/server.js`: API-Server
 - `public/`: geschuetztes Dashboard unter `/app`
 - `openapi.yaml`: Schema fuer Custom GPT Actions
+- `docs/Fitness-Coach-GPT-Hinweise-v0.9.md`: verbindliche Hinweise fuer das Custom GPT
+- `docs/Fitness-Coach-GPT-Hinweise-v0.9.docx`: inhaltlich identische Word-Fassung; bei Aenderungen immer gemeinsam mit der Markdown-Datei pflegen
 - `.env.example`: benoetigte Umgebungsvariablen
 
 ## Supabase einrichten
@@ -117,6 +119,14 @@ Nach Version 0.8 kann der GPT zusaetzlich:
 - `createDailyAssessment` oder `createPragmaticDailyAssessmentFromCheckIn` nutzen, um die Coach-Tagesbewertung zu speichern
 - `proposeMeasurementDay` nutzen, um einen ueberschaubaren Messtag fachlich vorzuschlagen
 - `createMeasurementDay` nutzen, um Messtag, Tests, Ergebnisse und Auswertung zu speichern
+
+## Verbindlicher Ablauf ab Version 0.9
+
+Die vollstaendigen GPT-Hinweise liegen in Markdown und Word unter `docs/`. Beide Fassungen muessen inhaltlich synchron bleiben.
+
+- Nach jedem gespeicherten Check-in folgt eine Tagesbewertung und immer ein gespeicherter Tagesplan, auch an Recovery- oder Pausentagen.
+- Trainingsplaene mit `should_train=true` brauchen Warm-up, Hauptteil und Cool-down sowie direkt ausfuehrbare Angaben pro Uebung.
+- Die Check-out-Vorlage zeigt alle relevanten Plandetails und fuellt die Ist-Werte mit den Planwerten vor.
 
 ## Coach-Instruktion
 
