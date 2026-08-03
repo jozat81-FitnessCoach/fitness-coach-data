@@ -45,25 +45,20 @@ components:
           type: string
         timezone:
           type: string
-        primary_goal:
-          type: string
-        user_context:
-          type: object
-          additionalProperties: true
-        available_equipment:
-          type: array
-          items:
-            type: string
-        training_constraints:
-          type: object
-          additionalProperties: true
     GoalConfirm:
       type: object
-      required: [goals]
+      required: [user_confirmed, goals]
       properties:
         profile_id:
           type: string
           format: uuid
+        user_confirmed:
+          type: boolean
+          enum: [true]
+        replacement_mode:
+          type: string
+          enum: [supplement, replace_supporting]
+          default: supplement
         goals:
           type: array
           items:
@@ -77,7 +72,7 @@ components:
                 format: uuid
               goal_level:
                 type: string
-                enum: [primary, secondary, supporting]
+                enum: [secondary, supporting]
               goal_type:
                 type: string
               description:
@@ -195,6 +190,10 @@ components:
           type: integer
           minimum: 0
           maximum: 10
+        mood_wellbeing:
+          type: integer
+          minimum: 0
+          maximum: 10
         readiness:
           type: integer
           minimum: 0
@@ -233,6 +232,17 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TrackedMetric"
+        body_regions:
+          type: array
+          items:
+            type: object
+            required: [region_key, region_label]
+            properties:
+              region_key: { type: string }
+              region_label: { type: string }
+              soreness_score: { type: integer, minimum: 0, maximum: 10 }
+              pain_score: { type: integer, minimum: 0, maximum: 10 }
+              notes: { type: string }
     DailyAssessment:
       type: object
       required: [date]
@@ -281,6 +291,29 @@ components:
         scoring:
           type: object
           additionalProperties: true
+        evidence:
+          type: object
+          properties:
+            knowledge_status:
+              type: string
+              enum: [current_research_checked, stable_knowledge_only]
+            researched_at:
+              type: string
+              format: date-time
+            summary:
+              type: string
+            sources:
+              type: array
+              items:
+                type: object
+                required: [title, url, source_type]
+                properties:
+                  title: { type: string }
+                  url: { type: string, format: uri }
+                  source_type:
+                    type: string
+                    enum: [guideline, systematic_review, meta_analysis, research_paper, official_medical_source, other]
+                  published_year: { type: integer }
     ExercisePlan:
       type: object
       required: [exercise_name, block_name, sets, reps, rpe_target, rest_seconds, technical_notes, today_focus, alternative]
@@ -335,6 +368,12 @@ components:
           format: uuid
         should_train:
           type: boolean
+        plan_type:
+          type: string
+          enum: [training, measurement, recovery, pause]
+        measurement_day_id:
+          type: string
+          format: uuid
         status:
           type: string
           enum: [planned, completed, adjusted, skipped]
@@ -359,6 +398,9 @@ components:
           type: string
         warnings:
           type: string
+        evidence:
+          type: object
+          additionalProperties: true
         exercises:
           type: array
           items:
@@ -569,7 +611,7 @@ paths:
   /profile/setup:
     post:
       operationId: setupProfile
-      summary: Speichert oder aktualisiert Nutzerkontext, Equipment und Zielkontext.
+      summary: Aktualisiert nur Anzeigename und Zeitzone. Kontext wird ausschliesslich ueber die nutzerbestaetigte Kontext-Action geaendert.
       requestBody:
         required: true
         content:
@@ -579,6 +621,26 @@ paths:
       responses:
         "200":
           description: Profil gespeichert.
+  /profile/context:
+    post:
+      operationId: updateUserConfirmedContext
+      summary: Aktualisiert den Kontext ausschliesslich nach ausdruecklicher Nutzeraussage und schreibt eine Historie.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_confirmed, change_reason, user_context]
+              properties:
+                profile_id: { type: string, format: uuid }
+                user_confirmed: { type: boolean, enum: [true] }
+                change_reason: { type: string }
+                user_context: { type: object, additionalProperties: true }
+                available_equipment: { type: array, items: { type: string } }
+                training_constraints: { type: object, additionalProperties: true }
+      responses:
+        "200": { description: Nutzerbestaetigter Kontext gespeichert. }
   /goals:
     get:
       operationId: getGoals
@@ -615,6 +677,47 @@ paths:
       responses:
         "201":
           description: Ziele gespeichert.
+  /tracking-fields:
+    get:
+      operationId: getTrackingFields
+      summary: Holt aktive und inaktive Custom- und temporaere Check-in-Felder.
+      responses:
+        "200": { description: Konfigurierte Zusatzfelder. }
+  /tracking-fields/configure:
+    post:
+      operationId: configureTrackingFields
+      summary: Aktiviert, aktualisiert oder deaktiviert Custom- und temporaere Check-in-Felder.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fields]
+              properties:
+                profile_id: { type: string, format: uuid }
+                fields:
+                  type: array
+                  items:
+                    type: object
+                    required: [metric_key, label, category, field_kind, value_type, rationale]
+                    properties:
+                      metric_key: { type: string }
+                      label: { type: string }
+                      category: { type: string }
+                      field_kind: { type: string, enum: [custom, temporary] }
+                      value_type: { type: string, enum: [number, scale, text, boolean] }
+                      unit: { type: string }
+                      scale_min: { type: number }
+                      scale_max: { type: number }
+                      scale_min_label: { type: string }
+                      scale_max_label: { type: string }
+                      required: { type: boolean }
+                      active: { type: boolean }
+                      active_until: { type: string, format: date }
+                      rationale: { type: string }
+      responses:
+        "201": { description: Zusatzfelder gespeichert. }
   /check-in-template:
     get:
       operationId: getCheckInTemplate
@@ -739,6 +842,40 @@ paths:
       responses:
         "201":
           description: Messtag gespeichert.
+  /movement-analyses:
+    get:
+      operationId: getMovementAnalyses
+      summary: Holt gespeicherte Ableitungen frueherer Video- und Bewegungsanalysen. Videodateien werden nicht gespeichert.
+      responses:
+        "200": { description: Bewegungsanalysen. }
+    post:
+      operationId: saveMovementAnalysis
+      summary: Speichert nur die fachlichen Ableitungen aus im Chat betrachteten Videos, nicht das Videomaterial.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [entry_date, movement_name, summary]
+              properties:
+                profile_id: { type: string, format: uuid }
+                measurement_day_id: { type: string, format: uuid }
+                measurement_test_id: { type: string, format: uuid }
+                entry_date: { type: string, format: date }
+                movement_name: { type: string }
+                source_description: { type: string }
+                summary: { type: string }
+                strengths: { type: string }
+                technical_findings: { type: string }
+                risks: { type: string }
+                recommendations: { type: string }
+                analysis_context: { type: object, additionalProperties: true }
+                derived_metrics:
+                  type: array
+                  items: { $ref: "#/components/schemas/TrackedMetric" }
+      responses:
+        "201": { description: Ableitungen gespeichert; kein Video persistiert. }
   /dashboard-summary:
     get:
       operationId: getDashboardSummary

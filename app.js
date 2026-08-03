@@ -450,6 +450,24 @@ function renderStrengthResults(checkOuts = []) {
   });
 }
 
+function renderBodyRegions(checkIn) {
+  const container = byId("bodyRegionScores");
+  if (!container) return;
+  container.innerHTML = "";
+  const rows = checkIn?.body_regions || [];
+  if (!rows.length) return;
+  rows.forEach((row) => {
+    const el = document.createElement("article");
+    el.className = "item";
+    el.innerHTML = `
+      <div class="item-title"><span>${escapeHtml(row.region_label)}</span></div>
+      <p>Muskelkater ${score(row.soreness_score)} · Schmerz ${score(row.pain_score)}</p>
+      ${row.notes ? `<p>${escapeHtml(row.notes)}</p>` : ""}
+    `;
+    container.appendChild(el);
+  });
+}
+
 function renderTrainingPlanExercises(plan) {
   const container = byId("trainingPlanExercises");
   container.innerHTML = "";
@@ -490,7 +508,9 @@ async function loadDashboard() {
   const data = await response.json();
   const today = data.today;
   const latestCheckIn = data.recent_check_ins?.[0];
-  const displayCheckIn = today || latestCheckIn;
+  // Detailfelder kommen aus dem vollstaendigen Check-in. daily_summary ist fuer
+  // Tagesaggregate gedacht und darf keine Detailwerte verdecken.
+  const displayCheckIn = latestCheckIn || today;
   const storedPlan = data.today_training_plan;
   const assessment = data.latest_daily_assessment;
   const scores = deriveScores(today, latestCheckIn);
@@ -534,6 +554,7 @@ async function loadDashboard() {
   text("sleepHours", displayCheckIn?.sleep_hours == null ? "-" : `${displayCheckIn.sleep_hours} h`);
   text("energyScore", score(displayCheckIn?.energy));
   text("motivationScore", score(displayCheckIn?.motivation));
+  text("moodScore", score(displayCheckIn?.mood_wellbeing));
   text("sorenessScore", score(displayCheckIn?.soreness));
   text("sorenessLegs", score(displayCheckIn?.muscle_soreness_legs));
   text("sorenessUpper", score(displayCheckIn?.muscle_soreness_upper));
@@ -544,6 +565,7 @@ async function loadDashboard() {
   text("sicknessScore", score(displayCheckIn?.sickness));
   text("painArea", displayCheckIn?.pain_present ? displayCheckIn?.pain_area || "ja" : "Nein");
   text("painIntensity", score(displayCheckIn?.pain_intensity));
+  renderBodyRegions(displayCheckIn);
 
   const recoveryComment = assessment?.reason
     ? assessment.reason

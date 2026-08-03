@@ -19,6 +19,7 @@ export const checkInSchema = z.object({
   muscle_soreness_other: z.string().max(1000).optional(),
   stress: score.optional(),
   motivation: score,
+  mood_wellbeing: score.optional(),
   readiness: score.optional(),
   pain_present: z.boolean().optional(),
   pain_area: z.string().max(1000).optional(),
@@ -34,6 +35,13 @@ export const checkInSchema = z.object({
   hrv_ms: z.coerce.number().positive().optional(),
   pain_notes: z.string().max(2000).optional(),
   notes: z.string().max(4000).optional(),
+  body_regions: z.array(z.object({
+    region_key: z.string().min(1).max(120),
+    region_label: z.string().min(1).max(200),
+    soreness_score: score.optional(),
+    pain_score: score.optional(),
+    notes: z.string().max(1000).optional()
+  })).optional(),
   tracked_metrics: z.array(z.lazy(() => trackedMetricSchema)).optional()
 });
 
@@ -106,6 +114,8 @@ export const trainingPlanSchema = z.object({
   goal_id: z.string().uuid().optional(),
   daily_assessment_id: z.string().uuid().optional(),
   should_train: z.boolean(),
+  plan_type: z.enum(["training", "measurement", "recovery", "pause"]).default("training"),
+  measurement_day_id: z.string().uuid().optional(),
   status: z.enum(["planned", "completed", "adjusted", "skipped"]).optional(),
   session_title: z.string().min(1).max(200),
   session_type: z.string().max(100).optional(),
@@ -117,10 +127,11 @@ export const trainingPlanSchema = z.object({
   mental_focus: z.string().max(2000).optional(),
   nutrition_recommendation: z.string().max(2000).optional(),
   warnings: z.string().max(2000).optional(),
+  evidence: z.record(z.any()).optional(),
   exercises: z.array(trainingExerciseSchema).default([]),
   tracked_metrics: z.array(trackedMetricSchema).optional()
 }).superRefine((plan, ctx) => {
-  if (!plan.should_train) return;
+  if (!plan.should_train || plan.plan_type === "measurement") return;
 
   for (const blockName of ["Warm-up", "Hauptteil", "Cool-down"]) {
     if (!plan.exercises.some((exercise) => exercise.block_name === blockName)) {
@@ -154,19 +165,46 @@ export const plannedCheckOutSchema = checkOutSchema.extend({
 
 export const profileSetupSchema = z.object({
   display_name: z.string().min(1).max(200).optional(),
-  timezone: z.string().min(1).max(100).optional(),
-  primary_goal: z.string().max(500).optional(),
-  user_context: z.record(z.any()).optional(),
+  timezone: z.string().min(1).max(100).optional()
+});
+
+export const profileContextSchema = z.object({
+  profile_id: z.string().uuid().optional(),
+  user_confirmed: z.literal(true),
+  change_reason: z.string().min(1).max(1000),
+  user_context: z.record(z.any()),
   available_equipment: z.array(z.string()).optional(),
   training_constraints: z.record(z.any()).optional()
 });
 
+export const trackingFieldsSchema = z.object({
+  profile_id: z.string().uuid().optional(),
+  fields: z.array(z.object({
+    metric_key: z.string().regex(/^[a-z0-9_]+$/).max(120),
+    label: z.string().min(1).max(200),
+    category: z.string().min(1).max(100),
+    field_kind: z.enum(["custom", "temporary"]),
+    value_type: z.enum(["number", "scale", "text", "boolean"]),
+    unit: z.string().max(40).optional(),
+    scale_min: z.coerce.number().optional(),
+    scale_max: z.coerce.number().optional(),
+    scale_min_label: z.string().max(300).optional(),
+    scale_max_label: z.string().max(300).optional(),
+    required: z.boolean().optional(),
+    active: z.boolean().optional(),
+    active_until: dateString.optional(),
+    rationale: z.string().min(1).max(2000)
+  })).min(1)
+});
+
 export const goalConfirmSchema = z.object({
   profile_id: z.string().uuid().optional(),
+  user_confirmed: z.literal(true),
+  replacement_mode: z.enum(["supplement", "replace_supporting"]).default("supplement"),
   goals: z.array(z.object({
     title: z.string().min(1).max(300),
     parent_goal_id: z.string().uuid().optional(),
-    goal_level: z.enum(["primary", "secondary", "supporting"]).optional(),
+    goal_level: z.enum(["secondary", "supporting"]).optional(),
     goal_type: z.string().max(100).optional(),
     description: z.string().max(2000).optional(),
     priority: z.coerce.number().int().min(1).max(10).optional(),
@@ -213,6 +251,17 @@ export const dailyAssessmentSchema = z.object({
   nutrition_recommendation: z.string().max(2000).optional(),
   next_step_summary: z.string().max(2000).optional(),
   scoring: z.record(z.any()).optional(),
+  evidence: z.object({
+    knowledge_status: z.enum(["current_research_checked", "stable_knowledge_only"]),
+    researched_at: z.string().datetime().optional(),
+    summary: z.string().max(4000).optional(),
+    sources: z.array(z.object({
+      title: z.string().min(1).max(500),
+      url: z.string().url(),
+      source_type: z.enum(["guideline", "systematic_review", "meta_analysis", "research_paper", "official_medical_source", "other"]),
+      published_year: z.coerce.number().int().min(1900).max(2200).optional()
+    })).max(12).optional()
+  }).optional(),
   tracked_metrics: z.array(trackedMetricSchema).optional()
 });
 
@@ -247,4 +296,20 @@ export const measurementDaySchema = z.object({
     risks: z.string().max(4000).optional(),
     recommendations: z.string().max(4000).optional()
   }).optional()
+});
+
+export const movementAnalysisSchema = z.object({
+  profile_id: z.string().uuid().optional(),
+  measurement_day_id: z.string().uuid().optional(),
+  measurement_test_id: z.string().uuid().optional(),
+  entry_date: dateString,
+  movement_name: z.string().min(1).max(300),
+  source_description: z.string().max(1000).optional(),
+  summary: z.string().min(1).max(4000),
+  strengths: z.string().max(4000).optional(),
+  technical_findings: z.string().max(6000).optional(),
+  risks: z.string().max(4000).optional(),
+  recommendations: z.string().max(6000).optional(),
+  derived_metrics: z.array(trackedMetricSchema).optional(),
+  analysis_context: z.record(z.any()).optional()
 });

@@ -6,18 +6,33 @@ Diese kleine API ist die Datenbasis fuer den Fitness-Coach:
 - Check-outs speichern
 - Dashboard-Daten abrufen
 - aktuellen Athletenzustand fuer ChatGPT/GPT Actions abrufen
+- unveraenderliches Hauptziel und bestaetigungspflichtige Unterziele
+- nutzerbestaetigte, versionierte Kontextaenderungen
+- Standard-, Custom- und temporaere Check-in-Felder
+- regionale Muskelkater- und Schmerzwerte
+- Messtage als eigener Tagesplantyp
+- Bewegungsableitungen speichern, ohne Videodateien zu persistieren
+- Evidenzmetadaten fuer wesentliche Coach-Entscheidungen
 
 ## Dateien
 
 - `supabase/schema.sql`: Datenbankschema fuer Supabase/Postgres
 - `supabase/upgrade_training_plans.sql`: Upgrade fuer bestehende Datenbanken mit Trainingsplaenen, Uebungen und flexiblen Metriken
 - `supabase/upgrade_profiles_goals_v08.sql`: Upgrade fuer Profile, Ziele, Standard-Check-in, Standard-Check-out, Daily Assessments und Mess-Tage
+- `supabase/upgrade_v010.sql`: Upgrade fuer das v0.10-Ziel-, Kontext-, Tracking-, Messtag- und Bewegungsanalysemodell
 - `src/server.js`: API-Server
 - `public/`: geschuetztes Dashboard unter `/app`
 - `openapi.yaml`: Schema fuer Custom GPT Actions
-- `docs/Fitness-Coach-GPT-Hinweise-v0.9.md`: verbindliche Hinweise fuer das Custom GPT
-- `docs/Fitness-Coach-GPT-Hinweise-v0.9.docx`: inhaltlich identische Word-Fassung; bei Aenderungen immer gemeinsam mit der Markdown-Datei pflegen
+- `docs/Fitness-Coach-GPT-Hinweise-v0.10.md`: verbindliche Hinweise fuer das Custom GPT
+- `docs/Fitness-Coach-GPT-Hinweise-v0.10.docx`: inhaltlich identische Word-Fassung
+- `docs/Fitness-Coach-Konzept-v0.10.md` und `.docx`: fachliches und technisches Zielkonzept
 - `.env.example`: benoetigte Umgebungsvariablen
+
+## Upgrade auf v0.10
+
+Nach den bisherigen SQL-Dateien in Supabase einmal `supabase/upgrade_v010.sql`
+ausfuehren. Danach Render neu deployen und im Custom GPT die aktualisierte
+`openapi.yaml` sowie die Hinweise v0.10 verwenden.
 
 ## Supabase einrichten
 

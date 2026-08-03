@@ -11,8 +11,11 @@ import {
   dailyAssessmentSchema,
   goalConfirmSchema,
   measurementDaySchema,
+  movementAnalysisSchema,
   plannedCheckOutSchema,
+  profileContextSchema,
   profileSetupSchema,
+  trackingFieldsSchema,
   trainingPlanSchema,
   trackedMetricSchema
 } from "./validation.js";
@@ -38,12 +41,15 @@ Datum/Uhrzeit: [automatisch vorbefuellt]
 - Energielevel (0 = voellig erschoepft, 10 = sehr energiegeladen): ___/10
 - Motivation (0 = keine Motivation, 10 = sehr hohe Motivation): ___/10
 - Mentale Belastung / Stress (0 = keine Belastung, 10 = extrem hoch): ___/10
+- Laune und Wohlbefinden (0 = sehr schlecht, 10 = sehr gut): ___/10
 
 3. Koerperlicher Zustand
 - Muskelkater gesamt (0 = keiner, 10 = sehr stark): ___/10
-- Muskelkater Beine (0 = keiner, 10 = sehr stark): ___/10
+- Muskelkater Waden und Fuesse (0 = keiner, 10 = sehr stark): ___/10
+- Muskelkater Oberschenkel (0 = keiner, 10 = sehr stark): ___/10
+- Muskelkater Rumpf (0 = keiner, 10 = sehr stark): ___/10
+- Muskelkater Ruecken (0 = keiner, 10 = sehr stark): ___/10
 - Muskelkater Oberkoerper (0 = keiner, 10 = sehr stark): ___/10
-- Muskelkater Ruecken/Rumpf (0 = keiner, 10 = sehr stark): ___/10
 - Muskelkater sonstiges: ___
 - Beweglichkeit/Steifigkeit (0 = sehr steif, 10 = sehr locker): ___/10
 - Krankheitsgefuehl (0 = keines, 10 = stark krank): ___/10
@@ -60,8 +66,9 @@ Datum/Uhrzeit: [automatisch vorbefuellt]
 - Verfuegbare Ausstattung: ___
 
 6. Tageskontext
+- Besondere Termine heute: ___
 - Besondere Einschraenkungen heute: ___
-- Was steht heute sonst an? ___
+- Was steht heute sonst an? (inkl. Termine): ___
 - Freitext-Notiz: ___`;
 
 const standardCheckOutTemplate = `CHECK-OUT
@@ -106,10 +113,13 @@ const standardCheckInFields = [
   { key: "energy", label: "Energielevel", type: "scale", scale_min: 0, scale_max: 10, help_text: "0 = voellig erschoepft, 10 = sehr energiegeladen" },
   { key: "motivation", label: "Motivation", type: "scale", scale_min: 0, scale_max: 10, help_text: "0 = keine Motivation, 10 = sehr hohe Motivation" },
   { key: "stress", label: "Mentale Belastung / Stress", type: "scale", scale_min: 0, scale_max: 10, help_text: "0 = keine Belastung, 10 = extrem hoch" },
+  { key: "mood_wellbeing", label: "Laune und Wohlbefinden", type: "scale", scale_min: 0, scale_max: 10, help_text: "0 = sehr schlecht, 10 = sehr gut" },
   { key: "soreness", label: "Muskelkater gesamt", type: "scale", scale_min: 0, scale_max: 10, help_text: "0 = keiner, 10 = sehr stark" },
-  { key: "muscle_soreness_legs", label: "Muskelkater Beine", type: "scale", scale_min: 0, scale_max: 10 },
-  { key: "muscle_soreness_upper", label: "Muskelkater Oberkoerper", type: "scale", scale_min: 0, scale_max: 10 },
-  { key: "muscle_soreness_back_core", label: "Muskelkater Ruecken/Rumpf", type: "scale", scale_min: 0, scale_max: 10 },
+  { key: "soreness_calves_feet", label: "Muskelkater Waden und Fuesse", type: "scale", scale_min: 0, scale_max: 10, help_text: "0 = keiner, 10 = sehr stark", storage: "body_regions" },
+  { key: "soreness_thighs", label: "Muskelkater Oberschenkel", type: "scale", scale_min: 0, scale_max: 10, help_text: "0 = keiner, 10 = sehr stark", storage: "body_regions" },
+  { key: "soreness_core", label: "Muskelkater Rumpf", type: "scale", scale_min: 0, scale_max: 10, help_text: "0 = keiner, 10 = sehr stark", storage: "body_regions" },
+  { key: "soreness_back", label: "Muskelkater Ruecken", type: "scale", scale_min: 0, scale_max: 10, help_text: "0 = keiner, 10 = sehr stark", storage: "body_regions" },
+  { key: "soreness_upper_body", label: "Muskelkater Oberkoerper", type: "scale", scale_min: 0, scale_max: 10, help_text: "0 = keiner, 10 = sehr stark", storage: "body_regions" },
   { key: "muscle_soreness_other", label: "Muskelkater sonstiges", type: "text" },
   { key: "pain_present", label: "Schmerzen oder Beschwerden vorhanden?", type: "boolean" },
   { key: "pain_area", label: "Beschwerdebereich(e)", type: "text" },
@@ -121,7 +131,7 @@ const standardCheckInFields = [
   { key: "training_window", label: "Trainingsfenster / Tageszeit", type: "text" },
   { key: "available_equipment", label: "Verfuegbare Ausstattung", type: "text" },
   { key: "daily_constraints", label: "Besondere Einschraenkungen heute", type: "text" },
-  { key: "daily_context", label: "Was steht heute sonst an?", type: "text" },
+  { key: "daily_context", label: "Besondere Termine / was steht heute sonst an?", type: "text" },
   { key: "notes", label: "Freitext-Notiz", type: "text" }
 ];
 
@@ -219,12 +229,26 @@ async function getActiveGoal(profileId) {
   return result.rows[0] ?? null;
 }
 
+function berlinDateTime(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: defaultTimezone, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
+    timeZoneName: "longOffset"
+  }).formatToParts(date);
+  const value = (type) => parts.find((part) => part.type === type)?.value;
+  const offset = (value("timeZoneName") || "GMT+00:00").replace("GMT", "");
+  return {
+    date: `${value("year")}-${value("month")}-${value("day")}`,
+    local_datetime: `${value("year")}-${value("month")}-${value("day")}T${value("hour")}:${value("minute")}:${value("second")}${offset}`
+  };
+}
+
 function getTodayIsoDate() {
-  return new Date().toISOString().slice(0, 10);
+  return berlinDateTime().date;
 }
 
 function localDateTime() {
-  return new Date().toISOString();
+  return berlinDateTime().local_datetime;
 }
 
 function scoreToPercent(value) {
@@ -272,18 +296,19 @@ function derivePragmaticReadiness(checkIn) {
   };
 }
 
-function buildDefaultGoalProposal(profile) {
+function buildDefaultGoalProposal(profile, primaryGoal) {
   return {
     profile_id: profile.id,
-    recommended_first_profile: "Sprungkraft und Explosivitaet",
+    recommended_first_profile: "Explosive Kraftbasis und Landestabilitaet",
     confirmation_required: true,
     goals: [
       {
-        title: "Sprungkraft und Explosivitaet steigern",
-        goal_level: "primary",
-        goal_type: "performance",
-        priority: 10,
-        description: "Basketballnahe Schnellkraft, Absprungqualitaet, Antritt und Landestabilitaet verbessern.",
+        title: "Explosive Kraftbasis und Landestabilitaet entwickeln",
+        parent_goal_id: primaryGoal?.id ?? null,
+        goal_level: "supporting",
+        goal_type: "training_phase",
+        priority: 8,
+        description: "Zeitlich begrenztes Unterziel zur Unterstuetzung des unveraenderlichen Hauptziels.",
         success_criteria: {
           direction: "increase",
           examples: ["hoeher springen", "explosiver antreten", "stabiler landen"]
@@ -407,6 +432,25 @@ async function getDashboardSummary() {
   ]);
 
   let recentCheckOutRows = recentCheckOuts.rows;
+  let recentCheckInRows = recentCheckIns.rows;
+  const checkInIds = recentCheckInRows.map((row) => row.id);
+  if (checkInIds.length) {
+    const bodyRegions = await query(
+      `select * from check_in_body_regions
+       where check_in_id = any($1::uuid[])
+       order by created_at asc`,
+      [checkInIds]
+    );
+    const byCheckIn = bodyRegions.rows.reduce((acc, row) => {
+      acc[row.check_in_id] = acc[row.check_in_id] || [];
+      acc[row.check_in_id].push(row);
+      return acc;
+    }, {});
+    recentCheckInRows = recentCheckInRows.map((row) => ({
+      ...row,
+      body_regions: byCheckIn[row.id] || []
+    }));
+  }
   const checkOutIds = recentCheckOutRows.map((row) => row.id);
   if (checkOutIds.length) {
     const exerciseResults = await query(
@@ -433,7 +477,7 @@ async function getDashboardSummary() {
     latest_daily_assessment: latestAssessment.rows[0] ?? null,
     today: today.rows[0] ?? null,
     daily_history: dailyHistory.rows,
-    recent_check_ins: recentCheckIns.rows,
+    recent_check_ins: recentCheckInRows,
     recent_check_outs: recentCheckOutRows,
     weekly_load: weeklyLoad.rows,
     today_training_plan: todayTrainingPlan,
@@ -648,25 +692,50 @@ app.post("/profile/setup", async (req, res) => {
     `update profiles
     set display_name = coalesce($1, display_name),
       timezone = coalesce($2, timezone),
-      primary_goal = coalesce($3, primary_goal),
-      user_context_json = coalesce($4, user_context_json),
-      available_equipment_json = coalesce($5, available_equipment_json),
-      training_constraints_json = coalesce($6, training_constraints_json),
       updated_at = now()
-    where id = $7
+    where id = $3
     returning *`,
     [
       data.display_name ?? null,
       data.timezone ?? null,
-      data.primary_goal ?? null,
-      data.user_context ?? null,
-      data.available_equipment ?? null,
-      data.training_constraints ?? null,
       current.id
     ]
   );
 
   res.json({ profile: result.rows[0] });
+});
+
+app.post("/profile/context", async (req, res) => {
+  const parsed = profileContextSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Context changes require explicit user confirmation", details: parsed.error.flatten() });
+    return;
+  }
+  const profile = await getProfile(parsed.data.profile_id);
+  const data = parsed.data;
+  const result = await query(
+    `update profiles set
+      user_context_json = $1,
+      available_equipment_json = coalesce($2, available_equipment_json),
+      training_constraints_json = coalesce($3, training_constraints_json),
+      updated_at = now()
+    where id = $4 returning *`,
+    [data.user_context, data.available_equipment ?? null, data.training_constraints ?? null, profile.id]
+  );
+  await query(
+    `insert into profile_context_history (
+      profile_id, context_json, available_equipment_json, training_constraints_json,
+      change_reason, changed_by
+    ) values ($1,$2,$3,$4,$5,'user')`,
+    [
+      profile.id,
+      data.user_context,
+      data.available_equipment ?? result.rows[0].available_equipment_json,
+      data.training_constraints ?? result.rows[0].training_constraints_json,
+      data.change_reason
+    ]
+  );
+  res.json({ profile: result.rows[0], context_changed_by: "user" });
 });
 
 app.get("/goals", async (req, res) => {
@@ -683,7 +752,8 @@ app.get("/goals", async (req, res) => {
 
 app.post("/goals/propose", async (req, res) => {
   const profile = await getProfile(req.body?.profile_id);
-  const proposal = buildDefaultGoalProposal(profile);
+  const primaryGoal = await getActiveGoal(profile.id);
+  const proposal = buildDefaultGoalProposal(profile, primaryGoal);
   res.json({
     proposal,
     instruction: "Bitte mit dem Nutzer abstimmen. Erst nach ausdruecklicher Bestaetigung /goals/confirm aufrufen."
@@ -698,6 +768,22 @@ app.post("/goals/confirm", async (req, res) => {
   }
 
   const profile = await getProfile(parsed.data.profile_id);
+  const proposedPrimary = parsed.data.goals.find((goal) => (goal.goal_level ?? "supporting") === "primary");
+  const existingPrimary = await query(
+    "select * from goals where profile_id = $1 and goal_level = 'primary' and status = 'active' limit 1",
+    [profile.id]
+  );
+  if (proposedPrimary && existingPrimary.rows[0]) {
+    res.status(409).json({ error: "Primary goal is immutable. Start a new project for a new primary goal." });
+    return;
+  }
+  if (parsed.data.replacement_mode === "replace_supporting") {
+    await query(
+      `update goals set status = 'archived', valid_until = current_date, updated_at = now()
+       where profile_id = $1 and goal_level in ('secondary','supporting') and status = 'active'`,
+      [profile.id]
+    );
+  }
   const savedGoals = [];
 
   for (const goal of parsed.data.goals) {
@@ -712,7 +798,7 @@ app.post("/goals/confirm", async (req, res) => {
         profile.id,
         goal.parent_goal_id ?? null,
         goal.title,
-        goal.goal_level ?? "primary",
+        goal.goal_level ?? "supporting",
         goal.goal_type ?? null,
         goal.description ?? null,
         goal.priority ?? 1,
@@ -777,14 +863,75 @@ app.post("/goals/confirm", async (req, res) => {
 app.get("/check-in-template", async (req, res) => {
   const profile = await getProfile(req.query.profile_id);
   const activeGoal = await getActiveGoal(profile.id);
+  const configuredFields = await query(
+    `select metric_key as key, label, category, field_kind, value_type as type,
+      unit, scale_min, scale_max, scale_min_label, scale_max_label, required, rationale
+     from profile_tracking_fields
+     where profile_id = $1 and active = true
+       and (active_until is null or active_until >= current_date)
+     order by field_kind, category, created_at`,
+    [profile.id]
+  );
+  const dynamicMarkdown = configuredFields.rows.length
+    ? "\n\n7. Zusaetzliche Felder\n" + configuredFields.rows.map((field) => {
+        const scale = field.type === "scale"
+          ? ` (${field.scale_min ?? 0} = ${field.scale_min_label ?? "niedrig"}, ${field.scale_max ?? 10} = ${field.scale_max_label ?? "hoch"})`
+          : "";
+        return `- ${field.label}${scale}: ___${field.unit ? ` ${field.unit}` : ""}`;
+      }).join("\n")
+    : "";
   res.json({
     date: req.query.date || getTodayIsoDate(),
     local_datetime: localDateTime(),
     profile,
     active_goal: activeGoal,
-    fields: standardCheckInFields,
-    template_markdown: standardCheckInTemplate
+    standard_fields: standardCheckInFields,
+    custom_fields: configuredFields.rows.filter((field) => field.field_kind === "custom"),
+    temporary_fields: configuredFields.rows.filter((field) => field.field_kind === "temporary"),
+    template_markdown: standardCheckInTemplate + dynamicMarkdown
   });
+});
+
+app.get("/tracking-fields", async (req, res) => {
+  const profile = await getProfile(req.query.profile_id);
+  const fields = await query(
+    "select * from profile_tracking_fields where profile_id = $1 order by active desc, field_kind, category, created_at",
+    [profile.id]
+  );
+  res.json({ profile_id: profile.id, fields: fields.rows });
+});
+
+app.post("/tracking-fields/configure", async (req, res) => {
+  const parsed = trackingFieldsSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid tracking fields", details: parsed.error.flatten() });
+    return;
+  }
+  const profile = await getProfile(parsed.data.profile_id);
+  const saved = [];
+  for (const field of parsed.data.fields) {
+    const result = await query(
+      `insert into profile_tracking_fields (
+        profile_id, metric_key, label, category, field_kind, value_type, unit,
+        scale_min, scale_max, scale_min_label, scale_max_label, required,
+        active, active_until, rationale
+      ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+      on conflict (profile_id, metric_key) do update set
+        label=excluded.label, category=excluded.category, field_kind=excluded.field_kind,
+        value_type=excluded.value_type, unit=excluded.unit, scale_min=excluded.scale_min,
+        scale_max=excluded.scale_max, scale_min_label=excluded.scale_min_label,
+        scale_max_label=excluded.scale_max_label, required=excluded.required,
+        active=excluded.active, active_until=excluded.active_until,
+        rationale=excluded.rationale, updated_at=now()
+      returning *`,
+      [profile.id, field.metric_key, field.label, field.category, field.field_kind,
+       field.value_type, field.unit ?? null, field.scale_min ?? null, field.scale_max ?? null,
+       field.scale_min_label ?? null, field.scale_max_label ?? null, field.required ?? false,
+       field.active ?? true, field.active_until ?? null, field.rationale]
+    );
+    saved.push(result.rows[0]);
+  }
+  res.status(201).json({ fields: saved });
 });
 
 app.post("/daily-assessments", async (req, res) => {
@@ -801,8 +948,8 @@ app.post("/daily-assessments", async (req, res) => {
       profile_id, check_in_id, goal_id, entry_date, readiness_total,
       readiness_health, readiness_mental, readiness_physical, traffic_light,
       coach_statement, reason, mental_alignment, nutrition_recommendation,
-      next_step_summary, scoring_json
-    ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+      next_step_summary, scoring_json, evidence_json
+    ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
     returning *`,
     [
       profile.id,
@@ -819,7 +966,8 @@ app.post("/daily-assessments", async (req, res) => {
       data.mental_alignment ?? null,
       data.nutrition_recommendation ?? null,
       data.next_step_summary ?? null,
-      data.scoring ?? {}
+      data.scoring ?? {},
+      data.evidence ?? {}
     ]
   );
 
@@ -848,8 +996,8 @@ app.post("/daily-assessments/from-check-in/:checkInId", async (req, res) => {
       profile_id, check_in_id, goal_id, entry_date, readiness_total,
       readiness_health, readiness_mental, readiness_physical, traffic_light,
       coach_statement, reason, mental_alignment, nutrition_recommendation,
-      next_step_summary, scoring_json
-    ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+      next_step_summary, scoring_json, evidence_json
+    ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
     returning *`,
     [
       profile.id,
@@ -866,7 +1014,8 @@ app.post("/daily-assessments/from-check-in/:checkInId", async (req, res) => {
       "Heute klar und ehrlich steuern: Qualitaet vor Ego, Tagesform respektieren.",
       "Kurz und pragmatisch: Eiweiss sichern, rund um Training Kohlenhydrate passend dosieren, ausreichend trinken.",
       "GPT soll darauf aufbauend den konkreten Tagesplan speichern.",
-      scores.scoring
+      scores.scoring,
+      {}
     ]
   );
 
@@ -994,11 +1143,11 @@ app.post("/check-ins", async (req, res) => {
       profile_id, local_datetime,
       entry_date, body_weight_kg, sleep_hours, sleep_quality, energy, soreness,
       muscle_soreness_legs, muscle_soreness_upper, muscle_soreness_back_core,
-      muscle_soreness_other, stress, motivation, readiness,
+      muscle_soreness_other, stress, motivation, mood_wellbeing, readiness,
       pain_present, pain_area, pain_intensity, mobility, sickness,
       available_training_minutes, training_window, available_equipment,
       daily_constraints, daily_context, resting_hr, hrv_ms, pain_notes, notes
-    ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)
+    ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30)
     returning *`,
     [
       profile.id,
@@ -1015,6 +1164,7 @@ app.post("/check-ins", async (req, res) => {
       data.muscle_soreness_other ?? null,
       data.stress ?? null,
       data.motivation,
+      data.mood_wellbeing ?? null,
       data.readiness ?? null,
       data.pain_present ?? null,
       data.pain_area ?? null,
@@ -1033,13 +1183,29 @@ app.post("/check-ins", async (req, res) => {
     ]
   );
 
+  const bodyRegions = [];
+  for (const region of data.body_regions ?? []) {
+    const savedRegion = await query(
+      `insert into check_in_body_regions (
+        check_in_id, region_key, region_label, soreness_score, pain_score, notes
+      ) values ($1,$2,$3,$4,$5,$6)
+      on conflict (check_in_id, region_key) do update set
+        region_label=excluded.region_label, soreness_score=excluded.soreness_score,
+        pain_score=excluded.pain_score, notes=excluded.notes
+      returning *`,
+      [result.rows[0].id, region.region_key, region.region_label,
+       region.soreness_score ?? null, region.pain_score ?? null, region.notes ?? null]
+    );
+    bodyRegions.push(savedRegion.rows[0]);
+  }
+
   const metrics = await insertTrackedMetrics(req.body.tracked_metrics, {
     date: data.date,
     source_type: "check_in",
     source_id: result.rows[0].id
   });
 
-  res.status(201).json({ check_in: result.rows[0], tracked_metrics: metrics });
+  res.status(201).json({ check_in: result.rows[0], body_regions: bodyRegions, tracked_metrics: metrics });
 });
 
 app.post("/check-outs", async (req, res) => {
@@ -1067,10 +1233,10 @@ app.post("/training-plans", async (req, res) => {
   const planResult = await query(
     `insert into training_plans (
       profile_id, goal_id, daily_assessment_id,
-      entry_date, should_train, status, session_title, session_type, goal,
+      entry_date, should_train, plan_type, measurement_day_id, status, session_title, session_type, goal,
       estimated_duration_minutes, intensity_target, coach_summary, coach_reasoning,
-      mental_focus, nutrition_recommendation, warnings
-    ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
+      mental_focus, nutrition_recommendation, warnings, evidence_json
+    ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
     returning *`,
     [
       profile.id,
@@ -1078,6 +1244,8 @@ app.post("/training-plans", async (req, res) => {
       data.daily_assessment_id ?? null,
       data.date,
       data.should_train,
+      data.plan_type,
+      data.measurement_day_id ?? null,
       data.status ?? "planned",
       data.session_title,
       data.session_type ?? null,
@@ -1088,7 +1256,8 @@ app.post("/training-plans", async (req, res) => {
       data.coach_reasoning ?? null,
       data.mental_focus ?? null,
       data.nutrition_recommendation ?? null,
-      data.warnings ?? null
+      data.warnings ?? null,
+      data.evidence ?? {}
     ]
   );
 
@@ -1248,6 +1417,48 @@ app.post("/planned-check-outs", async (req, res) => {
   });
 
   res.status(201).json({ check_out: checkOut, exercise_results: exerciseResults, tracked_metrics: metrics });
+});
+
+app.post("/movement-analyses", async (req, res) => {
+  const parsed = movementAnalysisSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid movement analysis", details: parsed.error.flatten() });
+    return;
+  }
+  const data = parsed.data;
+  const profile = await getProfile(data.profile_id);
+  const result = await query(
+    `insert into movement_analyses (
+      profile_id, measurement_day_id, measurement_test_id, entry_date,
+      movement_name, source_description, summary, strengths, technical_findings,
+      risks, recommendations, analysis_context_json
+    ) values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+    returning *`,
+    [profile.id, data.measurement_day_id ?? null, data.measurement_test_id ?? null,
+     data.entry_date, data.movement_name, data.source_description ?? null,
+     data.summary, data.strengths ?? null, data.technical_findings ?? null,
+     data.risks ?? null, data.recommendations ?? null, data.analysis_context ?? {}]
+  );
+  const metrics = await insertTrackedMetrics(data.derived_metrics, {
+    date: data.entry_date,
+    source_type: "measurement_day",
+    source_id: data.measurement_day_id ?? result.rows[0].id
+  });
+  res.status(201).json({
+    movement_analysis: result.rows[0],
+    derived_metrics: metrics,
+    media_stored: false
+  });
+});
+
+app.get("/movement-analyses", async (req, res) => {
+  const profile = await getProfile(req.query.profile_id);
+  const result = await query(
+    `select * from movement_analyses where profile_id = $1
+     order by entry_date desc, created_at desc limit 20`,
+    [profile.id]
+  );
+  res.json({ movement_analyses: result.rows });
 });
 
 app.get("/dashboard-summary", async (_req, res) => {
